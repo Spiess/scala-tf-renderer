@@ -2,8 +2,8 @@ package meshrenderer
 
 import java.io.File
 
+import org.platanios.tensorflow.api
 import org.platanios.tensorflow.api.ops.Gradients
-import org.platanios.tensorflow.api.ops.Gradients.Registry
 import org.platanios.tensorflow.api.{tf, _}
 import scalismo.faces.color.{RGB, RGBA}
 import scalismo.faces.io.{MeshIO, MoMoIO, PixelImageIO, RenderParameterIO}
@@ -19,7 +19,8 @@ import scalismo.mesh.TriangleMesh3D
   */
 object Example {
   def main(args: Array[String]): Unit = {
-    Registry.register("RasterizeTriangles", Rasterizer.rasterizeTrianglesGrad)
+    // TODO: Find equivalent of Registry.register
+//    Registry.register("RasterizeTriangles", Rasterizer.rasterizeTrianglesGrad)
 
     /*val param = RenderParameter.defaultSquare.withPose(Pose(1.0, Vector(0,0,-1000), 0,1.1,0)).fitToImageSize(200,250).withEnvironmentMap(
       SphericalHarmonicsLight(SphericalHarmonicsLight.frontal.coefficients ++ IndexedSeq(Vector(0.5,0.5,0.1), Vector(0.2,0.1,0.7), Vector(0.0,0.2,0.0), Vector(0.2,0.1,-0.1), Vector(-0.1,-0.1,-0.1)))
@@ -57,7 +58,7 @@ object Example {
 
     val renderer = TFRenderer(tfMesh, variableModel.pts, variableModel.colors, variableModel.pose, variableModel.camera, variableModel.illumination, param.imageSize.width, param.imageSize.height)
 
-    def renderInitialParametersAndCompareToGroundTruth() = {
+    def renderInitialParametersAndCompareToGroundTruth(): Unit = {
       val sess = Session()
       sess.run(targets=tf.globalVariablesInitializer())
 
@@ -66,7 +67,7 @@ object Example {
         fetches = Seq(renderer.shShader)
       )
 
-      val tensorImg = result(0).toTensor
+      val tensorImg = result.head.toTensor
       val img = TFConversions.oneToOneTensorImage3dToPixelImage(tensorImg)
       PixelImageIO.write[RGB](img, new File("/tmp/fit.png")).get
 
@@ -84,7 +85,7 @@ object Example {
     renderInitialParametersAndCompareToGroundTruth()
 
     //loss
-    val target = tf.placeholder(FLOAT32, Shape(param.imageSize.height, param.imageSize.width, 3), "target")
+    val target = tf.placeholder[Float](Shape(param.imageSize.height, param.imageSize.width, 3), "target")
 
     //val reg = TFMeshOperations.vertexToNeighbourDistance(tfMesh.adjacentPoints, renderer.ptsOffset)
 
@@ -98,7 +99,10 @@ object Example {
 
     val validArea = tf.tile(tf.expandDims(renderer.triangleIdsAndBCC.triangleIds > 0, 2), Seq(1,1,3))
 
-    val rec = tf.sum(tf.mean(tf.abs(target*validArea - renderer.shShader*validArea)))
+    val recPart1 = target * validArea.toFloat
+    val recPart2 = renderer.shShader * validArea.toFloat
+
+    val rec = tf.sum(tf.mean(tf.abs(recPart1 - recPart2)))
 
     val pixelFGLH = {
       val sdev = 0.0043f // sdev corresponding to very good fit so this can be smaller than 0.043
@@ -124,8 +128,10 @@ object Example {
      */
     val shapePrior = {
       val n = variableModel.ptsVar.shape(0)
-      val s = tf.cumsum(tf.square(variableModel.ptsVar))
-      -0.5f* n *math.log(2*math.Pi) - 0.5f*s(n-1)
+      val s = tf.cumsum(tf.square(variableModel.ptsVar), 0)
+      val part1 = 0.5f * s(n-1)
+      var part2 = Tensor(-0.5f * n * math.log(2*math.Pi)).toFloat
+      part2 - part1
     }
 
 
@@ -139,22 +145,28 @@ object Example {
 
     println("loss", loss)
 
-    val grad: Seq[OutputLike] = Gradients.gradients(
-      Seq(loss),
-      Seq(
-        variableModel.ptsVar, variableModel.colorsVar,
-        variableModel.illumVar,
-        variableModel.poseRotVar
-      )
+    val ys = Seq(loss)
+    val xs: Seq[Output[Float]] = Seq(
+      variableModel.ptsVar, variableModel.colorsVar,
+      variableModel.illumVar,
+      variableModel.poseRotVar
     )
-    val optimizer = tf.train.AMSGrad(0.1, name="adal")
-    val optFn = optimizer.applyGradients(
-      Seq(
+    val grad: Seq[OutputLike[Float]] = Gradients.gradients(
+      ys,
+      xs,
+      Float
+    )
+    val optimizer = tf.train.AMSGrad(0.1f, name="adal")
+    // TODO: applyGradients requires Variable[Any] here for some reason, bug maybe?
+    val gradients: Seq[(OutputLike[Float], api.tf.Variable[Any])] = Seq(
       (grad(0), variableModel.ptsVar),
-        (grad(1), variableModel.colorsVar),
-        (grad(2), variableModel.illumVar),
-        (grad(3), variableModel.poseRotVar)
-    ))
+      (grad(1), variableModel.colorsVar),
+      (grad(2), variableModel.illumVar),
+      (grad(3), variableModel.poseRotVar)
+    )
+    val optFn = optimizer.applyGradients(
+      gradients
+    )
 
 
     val session = Session()

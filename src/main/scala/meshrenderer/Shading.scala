@@ -19,7 +19,7 @@ object Shading {
     * @param zVertexData [width x height]
     * @return
     */
-  def interpolateVertexDataPerspectiveCorrect(r: RasterizationOutput, vtxIdxPerPixel: Output, vertexData: Output, zVertexData: Output): Output = {
+  def interpolateVertexDataPerspectiveCorrect(r: RasterizationOutput, vtxIdxPerPixel: Output[Int], vertexData: Output[Float], zVertexData: Output[Float]): Output[Float] = {
     val attrDim = vertexData.shape(1)
 
     val zVertexDataExp = {
@@ -58,7 +58,7 @@ object Shading {
     * @param vertexData [#vertex x #attributes].
     * @return
     */
-  def interpolateVertexDataWithoutPerspectiveCorrection(r: RasterizationOutput, screenSpaceBarycentricCoordinates: Output, vtxIdxPerPixel: Output, vertexData: Output): Output = {
+  def interpolateVertexDataWithoutPerspectiveCorrection(r: RasterizationOutput, screenSpaceBarycentricCoordinates: Output[Float], vtxIdxPerPixel: Output[Int], vertexData: Output[Float]): Output[Float] = {
 
     val valuesPerPixel = tf.transpose(tf.gather(vertexData, vtxIdxPerPixel, name = "gatherInInterpolateVertexData"), Seq(0,2,1))
 
@@ -81,17 +81,17 @@ object Shading {
     tf.reshape(interpolateValues, Shape(r.triangleIds.shape(0), r.triangleIds.shape(1), vertexData.shape(1)))
   }
 
-  def lambertShader(albedoPerPixel: Output, ambientLight: Output, diffuseLight: Output, lightDir: Output,normalsPerPixel: Output) = {
+  def lambertShader(albedoPerPixel: Output[Float], ambientLight: Output[Float], diffuseLight: Output[Float], lightDir: Output[Float],normalsPerPixel: Output[Float]): Output[Float] = {
     val normals = normalsPerPixel.reshape(Shape(-1, 3))
     val zero = tf.zeros(normals.dataType, Shape(normals.shape(0), 1))
     val dot = tf.matmul(normals, lightDir.transpose())
     val normalsWithZero = tf.concatenate(Seq(dot, zero), axis=1)
-    val diffuseFactor = tf.max(normalsWithZero, Seq(1), true)
+    val diffuseFactor = tf.max(normalsWithZero, Seq(1), keepDims = true)
     val diffuse = diffuseFactor * diffuseLight
     tf.add(diffuse, ambientLight).reshape(Shape(albedoPerPixel.shape(0), albedoPerPixel.shape(1), 3)) * albedoPerPixel
   }
 
-  def shBasis(dir: Output) = {
+  def shBasis(dir: Output[Float]): Output[Float] = {
     val N0 : Float = SphericalHarmonics.N0.toFloat
     val N1 : Float = SphericalHarmonics.N1.toFloat
     val N2_1 : Float = SphericalHarmonics.N2_1.toFloat
@@ -122,7 +122,7 @@ object Shading {
     sh
   }
 
-  def sphericalHarmonicsLambertShader(albedoPerPixel: Output, normalsPerPixel: Output, envMap: Output) = {
+  def sphericalHarmonicsLambertShader(albedoPerPixel: Output[Float], normalsPerPixel: Output[Float], envMap: Output[Float]): Output[Float] = {
     val nCoeffs = envMap.shape(0)
     val sh = shBasis(normalsPerPixel.reshape(Shape(-1,3)))
     val lk = Tensor(SphericalHarmonicsLight.lambertKernel.map(_.toFloat)).reshape(Shape(9,1))
@@ -146,7 +146,7 @@ object Shading {
     println("conv", conv)
     println("albedoPerPixel", albedoPerPixel)
 
-    tf.createWithNameScope("shshader") {
+    tf.nameScope("shshader") {
       albedoPerPixel * conv
     }
   }

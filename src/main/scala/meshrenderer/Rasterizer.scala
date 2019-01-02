@@ -10,7 +10,7 @@ object Rasterizer {
   val path = "lib/rasterize_triangles_kernel.so"
 
   //keeps the data from the rasterizer
-  case class RasterizationOutput(barycetricImage: OutputLike, triangleIds: OutputLike, zBufferImage: OutputLike)
+  case class RasterizationOutput(barycetricImage: Output[Float], triangleIds: Output[Int], zBufferImage: Output[Float])
 
   """Implements a rasterization kernel for rendering mesh geometry.
     |
@@ -38,47 +38,41 @@ object Rasterizer {
     |z_buffer: 2-D tensor with shape [image_height, image_width]. Contains the Z
     |  coordinate in vae.Normalized Device Coordinates for each pixel occupied by a
     |  triangle."""
-  def rasterize_triangles(vertices: Output,
-                          triangles: Output,
+  def rasterize_triangles(vertices: Output[Float],
+                          triangles: Output[Float],
                           image_width: Int,
                           image_height: Int,
                           name: String = "rasterize_triangles"): RasterizationOutput = {
     org.platanios.tensorflow.jni.TensorFlow.loadOpLibrary(path)
 
 
-    val outs = Op.Builder(opType = "RasterizeTriangles", name)
-      .addInput(vertices)
-      .addInput(triangles)
+    // TODO: Find out how Op registration works in TF Scala 0.4
+    val outs = Op.Builder(opType = "RasterizeTriangles", name, input = Seq(vertices, triangles))
       .setAttribute("image_width", image_width)
       .setAttribute("image_height", image_height)
       .build()
-      .outputs
 
     RasterizationOutput(outs(0), outs(1), outs(2))
   }
 
-  def rasterizeTrianglesGrad(op: Op, outputGradients: Seq[OutputLike]): Seq[Output] = {
+  def rasterizeTrianglesGrad(op: Op[Float, Float], outputGradients: Seq[Output[Float]]): Seq[Output[Float]] = {
     println("outputGradients", outputGradients.length)
     println("outputGradients", outputGradients(0))
     println("outputGradients", outputGradients(1))
     println("outputGradients", outputGradients(2))
-    println("op.outputs", op.outputs(0))
-    println("op.outputs", op.outputs(1))
-    println("op.inputs", op.inputs.length)
-    println("op.outputs", op.outputs.length)
+    println("op.outputs", op.outputsSeq(0))
+    println("op.outputs", op.outputsSeq(1))
+    println("op.inputs", op.inputsSeq.length)
+    println("op.outputs", op.inputsSeq.length)
     //outputGradients: dfdBarycentriCoordinates: Output, df_didsIgnored: Output, df_dzIgnored: Output
-    val outGrad = Op.Builder(opType = "RasterizeTrianglesGrad", "rasterizeTrianglesGrad")
-      .addInput(op.inputs(0)) //vertices
-      .addInput(op.inputs(1)) //triangles
-      .addInput(op.outputs(0)) // rastered bcc
-      .addInput(op.outputs(1)) // rastered triangle ids
-      .addInput(outputGradients(0)) //rastered dfdb
+    // TODO: Find out how Op registration works in TF Scala 0.4
+    val outGrad = Op.Builder(opType = "RasterizeTrianglesGrad", "rasterizeTrianglesGrad",
+      input = Seq(op.inputsSeq(0).toFloat, op.inputsSeq(1).toFloat, op.outputsSeq(0).toFloat, op.outputsSeq(1).toFloat, outputGradients(0)))
       .setAttribute("image_width", op.longAttribute("image_width"))
       .setAttribute("image_height", op.longAttribute("image_height"))
       .build()
-      .outputs
 
-    println("outGrad", outGrad.length, outGrad)
+    println("outGrad", outGrad.outputsSeq.length, outGrad)
     Seq(outGrad(0), tf.identity(outGrad(0))) //zBuffer gradients missing but we need to supply something!
   }
 }
