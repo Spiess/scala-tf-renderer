@@ -2,6 +2,7 @@ package meshrenderer
 
 import java.io.File
 import java.net.URI
+import java.nio.{ByteBuffer, ByteOrder}
 
 import breeze.linalg.{DenseMatrix, DenseVector}
 import org.platanios.tensorflow.api
@@ -83,10 +84,18 @@ object TFMoMoConversions {
   }
 
   def toTensor(mat: DenseMatrix[Double]): Tensor[Float] = {
-    Tensor(mat.toArray.map(_.toFloat)).reshape(Shape(mat.cols, mat.rows)).transpose()
+    val bufferCapacity = mat.size * 4
+    val buffer = ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder())
+    mat.toArray.map(_.toFloat).foreach(buffer.putFloat)
+    buffer.flip()
+    Tensor.fromBuffer[Float](Shape(mat.cols, mat.rows), bufferCapacity, buffer).transpose()
   }
   def toTensor(vec: DenseVector[Double]): Tensor[Float] = {
-    Tensor(vec.toArray.map(_.toFloat)).reshape(Shape(1, vec.length))
+    val bufferCapacity = vec.size * 4
+    val buffer = ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder())
+    vec.toArray.map(_.toFloat).foreach(buffer.putFloat)
+    buffer.flip()
+    Tensor.fromBuffer[Float](Shape(1, vec.length), bufferCapacity, buffer)
   }
 
   def main(args: Array[String]): Unit = {
