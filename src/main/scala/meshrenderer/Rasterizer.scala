@@ -1,5 +1,6 @@
 package meshrenderer
 
+import org.platanios.tensorflow.api.ops.Gradients
 import org.platanios.tensorflow.api.{tf, _}
 
 
@@ -50,15 +51,18 @@ object Rasterizer {
 
 
     // TODO: Find out how Op registration works in TF Scala 0.4
-    val outs = Op.Builder(opType = "RasterizeTriangles", name, input = Seq(vertices, triangles))
+    val gradientFn: Gradients.GradientFn[Seq[Output[Float]], Seq[Output[Float]], Seq[Output[Float]], Seq[Output[Float]]] = rasterizeTrianglesGrad
+
+    val outs: Op[Seq[Output[Float]], Seq[Output[Float]]] = Op.Builder[Seq[Output[Float]], Seq[Output[Float]]](opType = "RasterizeTriangles", name, input = Seq(vertices, triangles))
       .setAttribute("image_width", image_width)
       .setAttribute("image_height", image_height)
+      .setGradientFn(rasterizeTrianglesGrad) // TODO: Is this enough/does this work?
       .build()
 
     RasterizationOutput(outs.outputsSeq.head.toFloat, outs.outputsSeq(1).toInt, outs.outputsSeq(2).toFloat)
   }
 
-  def rasterizeTrianglesGrad(op: Op[Float, Float], outputGradients: Seq[Output[Float]]): Seq[Output[Float]] = {
+  def rasterizeTrianglesGrad(op: Op[Seq[Output[Float]], Seq[Output[Float]]], outputGradients: Seq[Output[Float]]): Seq[Output[Float]] = {
     println("outputGradients", outputGradients.length)
     println("outputGradients", outputGradients.head)
     println("outputGradients", outputGradients(1))
@@ -66,10 +70,10 @@ object Rasterizer {
     println("op.outputs", op.outputsSeq.head)
     println("op.outputs", op.outputsSeq(1))
     println("op.inputs", op.inputsSeq.length)
-    println("op.outputs", op.inputsSeq.length)
+    println("op.inputs", op.inputsSeq.length)
     //outputGradients: dfdBarycentriCoordinates: Output, df_didsIgnored: Output, df_dzIgnored: Output
     // TODO: Find out how Op registration works in TF Scala 0.4
-    val outGrad = Op.Builder(opType = "RasterizeTrianglesGrad", "rasterizeTrianglesGrad",
+    val outGrad = Op.Builder[Seq[Output[Float]], Seq[Output[Float]]](opType = "RasterizeTrianglesGrad", "rasterizeTrianglesGrad",
       input = Seq(op.inputsSeq.head.toFloat, op.inputsSeq(1).toFloat, op.outputsSeq.head.toFloat, op.outputsSeq(1).toFloat, outputGradients.head))
       .setAttribute("image_width", op.longAttribute("image_width"))
       .setAttribute("image_height", op.longAttribute("image_height"))
