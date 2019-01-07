@@ -26,17 +26,17 @@ object Example {
       SphericalHarmonicsLight(SphericalHarmonicsLight.frontal.coefficients ++ IndexedSeq(Vector(0.5,0.5,0.1), Vector(0.2,0.1,0.7), Vector(0.0,0.2,0.0), Vector(0.2,0.1,-0.1), Vector(-0.1,-0.1,-0.1)))
     )*/
     //
-    val imageFn = new File("/home/andreas/work/Code/phd-experiments/targets/collection/jimmy_carter/JimmyCarterPortrait2.png")
+    val imageFn = new File("data/JimmyCarterPortrait2.png")
     val image = {
       val img = PixelImageIO.read[RGB](imageFn).get
       img.resample((img.width*0.1).toInt, (img.height*0.1).toInt)
     }
-    val param = RenderParameterIO.read(new File("../phd-experiments/out/fits/jimmy_carter/JimmyCarterPortrait2/fit-best.rps")).get.fitToImageSize(image.width, image.height)
+    val param = RenderParameterIO.read(new File("data/fit-best.rps")).get.fitToImageSize(image.width, image.height)
     //val image = PixelImageIO.read[RGB](new File("/tmp/tf_rendering_sh_lambert.png")).get
 
     val model = {
       scalismo.initialize()
-      val momoFn = new File("model2017-1_bfm_nomouth.h5")
+      val momoFn = new File("../face-autoencoder/model2017-1_bfm_nomouth.h5")
       MoMoIO.read(momoFn).get
     }
 
