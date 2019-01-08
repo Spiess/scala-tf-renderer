@@ -2,14 +2,17 @@ package meshrenderer
 
 import java.io.File
 
+import breeze.linalg.DenseVector
 import org.platanios.tensorflow.api
 import org.platanios.tensorflow.api.ops.Gradients
 import org.platanios.tensorflow.api.{tf, _}
+import scalismo.common.PointId
 import scalismo.faces.color.{RGB, RGBA}
 import scalismo.faces.io.{MeshIO, MoMoIO, PixelImageIO, RenderParameterIO}
 import scalismo.faces.mesh.{ColorNormalMesh3D, VertexColorMesh3D}
 import scalismo.faces.momo.MoMo
 import scalismo.faces.parameters._
+import scalismo.faces.sampling.face.MoMoRenderer
 import scalismo.geometry.Point
 import scalismo.mesh.TriangleMesh3D
 
@@ -34,27 +37,75 @@ object Example {
     val param = RenderParameterIO.read(new File("data/fit-best.rps")).get.fitToImageSize(image.width, image.height)
     //val image = PixelImageIO.read[RGB](new File("/tmp/tf_rendering_sh_lambert.png")).get
 
+    println("Initializing and loading model...")
     val model = {
       scalismo.initialize()
       val momoFn = new File("../face-autoencoder/model2017-1_bfm_nomouth.h5")
       MoMoIO.read(momoFn).get
     }
+    println("Done initializing and loading model.")
 
     //val mesh = MeshIO.read(new File("/home/andreas/export/mean2012_l7_bfm_pascaltex.msh.gz")).get.colorNormalMesh3D.get
     val mesh = model.instance(param.momo.coefficients)
 
+    println("Writing temp model...")
     MeshIO.write(mesh, new File("/tmp/jimmi_fit.ply")).get
+    println("Wrote temp model.")
+
+    println("Transforming variables to TF versions...")
     val tfMesh = TFMesh(mesh)
 
     val initPose = TFPose(param.pose)
     val initCamera = TFCamera(param.camera)
     val initLight = TFConversions.pointsToTensor(param.environmentMap.coefficients).transpose()
+    println("Done transforming variables to TF versions.")
 
+    println("Creating TFMoMo...")
     //val variableModel = new OffsetFromInitializationModel(tfMesh.pts, tfMesh.colors, initPose, initCamera, initLight)
     val tfModel = TFMoMo(model.expressionModel.get.truncate(80,40, 5))
-    val tfMean = TFMesh(model.neutralModel.mean)
+    println("Done creating TFMoMo.")
+    println("Creating mean TFMesh...")
+    /*
+    ==================================
+    This part used the incorrect mean!
+    ==================================
+     */
+//    val tfMean = TFMesh(model.neutralModel.mean)
+    val tfMean = TFMesh(model.mean)
+    println("Done creating mean TFMesh.")
 
+    println("Creating variable model...")
     val variableModel = TFMoMoExpressParameterModel(tfModel, tfMean, initPose, initCamera, initLight)
+    println("Done creating variable model.")
+
+    println(s"Mesh pt0: ${mesh.shape.pointSet.point(PointId(0))}")
+    println(s"TFMesh pt0: ${tfMesh.pts(0, 0).scalar}, ${tfMesh.pts(1, 0).scalar}, ${tfMesh.pts(2, 0).scalar}")
+
+    val results = {
+      val session = Session()
+      session.run(targets=tf.globalVariablesInitializer())
+      val paramTensor = TFMoMoConversions.toTensor(DenseVector.vertcat(
+        param.momo.coefficients.shape,
+        DenseVector.zeros[Double](tfModel.shape.shape(1) - param.momo.coefficients.shape.length),
+        param.momo.coefficients.expression,
+        DenseVector.zeros[Double](tfModel.expression.shape(1) - param.momo.coefficients.expression.length)
+      )).transpose()
+      val assignOp = variableModel.ptsVar.assign(paramTensor)
+      session.run(targets = assignOp)
+      session.run(feeds = variableModel.feeds, fetches = variableModel.pts)
+    }
+
+    println(s"variableModel pt0: ${results(0, 0).scalar}, ${results(1, 0).scalar}, ${results(2, 0).scalar}")
+//    println(tfMesh.pts.summarize(10))
+//    println(results.summarize(10))
+
+    val landmarksRenderer = MoMoRenderer(model, RGBA.BlackTransparent)
+
+    val landmark = landmarksRenderer.renderLandmark("left.eye.corner_outer", param).get
+
+    println(s"Normal renderer landmark: ${landmark.point}")
+
+//    System.exit(0)
 
     val renderer = TFRenderer(tfMesh, variableModel.pts, variableModel.colors, variableModel.pose, variableModel.camera, variableModel.illumination, param.imageSize.width, param.imageSize.height)
 
