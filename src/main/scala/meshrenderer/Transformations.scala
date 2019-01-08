@@ -79,6 +79,8 @@ object Transformations {
     tf.stack(Seq(newpx, newpy, newpz), axis=1).transpose()
   }
 
+  // TODO: Change the way points are stored: change (dimension, point) to (point dimension) because this is incredibly unintuitive and often inconvenient
+
   def objectToNDC(pts: Output[Float], pose: TFPose, camera: TFCamera): Output[Float] = {
     val poseTransformed = poseTransform(pts, pose.pitch, pose.yaw, pose.roll, pose.translation)
 

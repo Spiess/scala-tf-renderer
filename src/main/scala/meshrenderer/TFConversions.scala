@@ -145,6 +145,8 @@ object TFConversions {
   }
 }
 
+// TODO: Remove the need for TF*Tensor (just use tensor version because tensors are output too)
+
 //row vectors
 case class TFPose(rotation: Output[Float], translation: Output[Float]) {
   val yaw: Output[Float] = rotation(0, 0)
