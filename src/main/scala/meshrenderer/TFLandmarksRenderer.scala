@@ -3,18 +3,14 @@ package meshrenderer
 import org.platanios.tensorflow.api.{tf, _}
 import scalismo.faces.momo.{MoMoBasic, MoMoExpress}
 
-case class TFLandmarksRendererBasic() {
-
-}
-
 /**
-  * Class for determining landmark positions in pixel coordinates on an image also using expression parameters.
+  * Class for determining landmark positions in pixel coordinates on an image.
   *
-  * @param basisMatrix  combined basis matrix of shape and expression matrices
-  * @param parameterStd combined standard deviation of the shape and expression parameters
-  * @param meanMesh     the mean of the used morphable model
+  * @param basisMatrix  the basis matrix of the chosen model
+  * @param parameterStd the parameter standard deviations of the chosen model
+  * @param meanMesh     the mean mesh points of the used morphable model
   */
-case class TFLandmarksRendererExpression(basisMatrix: Tensor[Float], parameterStd: Tensor[Float], meanMesh: Tensor[Float]) {
+case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[Float], meanMesh: Tensor[Float]) {
 
   /**
     * Calculates the point positions for the model instance defined by the given parameters. Only returns the points
@@ -22,7 +18,7 @@ case class TFLandmarksRendererExpression(basisMatrix: Tensor[Float], parameterSt
     * <br>
     * Tensor version which immediately calculates the result.
     *
-    * @param parameters concatenation of shape and expression model parameters
+    * @param parameters model parameters
     * @return [[Tensor]] of mesh points
     */
   def getInstance(parameters: Tensor[Float]): Tensor[Float] = {
@@ -40,7 +36,7 @@ case class TFLandmarksRendererExpression(basisMatrix: Tensor[Float], parameterSt
     * Calculates the point positions for the model instance defined by the given parameters. Only returns the points
     * specified during creation of this TFLandmarksRenderer.
     *
-    * @param parameters concatenation of shape and expression model parameters
+    * @param parameters model parameters
     * @return [[Output]] of mesh points
     */
   def getInstance(parameters: Output[Float]): Output[Float] = {
@@ -53,7 +49,7 @@ case class TFLandmarksRendererExpression(basisMatrix: Tensor[Float], parameterSt
     * <br>
     * Tensor version which immediately calculates the result.
     *
-    * @param parameters  concatenation of shape and expression model parameters
+    * @param parameters  model parameters
     * @param pose        the pose of the model instance
     * @param camera      the camera for which to project the landmarks
     * @param imageWidth  the width of the rendered image
@@ -74,7 +70,7 @@ case class TFLandmarksRendererExpression(basisMatrix: Tensor[Float], parameterSt
   /**
     * Calculates landmark positions in the rendered image for the given parameters.
     *
-    * @param parameters  concatenation of shape and expression model parameters
+    * @param parameters  model parameters
     * @param pose        the pose of the model instance
     * @param camera      the camera for which to project the landmarks
     * @param imageWidth  the width of the rendered image
@@ -103,19 +99,35 @@ case class TFLandmarksRendererExpression(basisMatrix: Tensor[Float], parameterSt
 }
 
 object TFLandmarksRenderer {
-  def apply(momo: MoMoBasic): TFLandmarksRendererBasic = TFLandmarksRendererBasic()
+  def apply(momo: MoMoBasic, landmarkPointIds: IndexedSeq[Int] = null): TFLandmarksRenderer = {
+    val shapeBasis = {
+      val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
+
+      if (landmarkPointIds != null) {
+        val basisIndices = landmarkPointIds.flatMap(i => Seq(i * 3, i * 3 + 1, i * 3 + 2))
+        fullShapeBasis.gather(basisIndices, 0)
+      } else {
+        fullShapeBasis
+      }
+    }
+
+    val shapeStd = TFMoMoConversions.toTensor(momo.shape.variance.map(math.sqrt)).transpose()
+
+    val meanPoints = TFConversions.pointsToTensor(landmarkPointIds.collect(momo.mean.shape.position.pointData))
+
+    TFLandmarksRenderer(shapeBasis, shapeStd, meanPoints)
+  }
 
   /**
     * Creates a TFLandmarksRenderer for expression models.
     * The landmarks renderer can be restricted to a specific set of pointIds for efficiency. In that case the results
-    * [[TFLandmarksRendererExpression.getInstance]] and [[TFLandmarksRendererExpression.calculateLandmarks]] will be
+    * [[TFLandmarksRenderer.getInstance]] and [[TFLandmarksRenderer.calculateLandmarks]] will be
     * only the specified points in the specified order.
     *
     * @param momo model to use
     * @param landmarkPointIds point ids of the desired landmarks or null for all points
     */
-  def apply(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int] = null): TFLandmarksRendererExpression = {
-
+  def apply(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int] = null): TFLandmarksRenderer = {
     val (shapeBasis, expressionBasis) = {
       val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
       val fullExpressionBasis = TFMoMoConversions.toTensor(momo.expression.basisMatrix)
@@ -142,6 +154,6 @@ object TFLandmarksRenderer {
 
     val meanPoints = TFConversions.pointsToTensor(landmarkPointIds.collect(momo.mean.shape.position.pointData))
 
-    TFLandmarksRendererExpression(combinedBasis, combinedStd, meanPoints)
+    TFLandmarksRenderer(combinedBasis, combinedStd, meanPoints)
   }
 }
