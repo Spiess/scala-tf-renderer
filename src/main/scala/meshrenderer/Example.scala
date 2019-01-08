@@ -82,7 +82,11 @@ object Example {
       session.run(feeds = variableModel.feeds, fetches = variableModel.pts)
     }
 
-    val tfLandmarksRenderer = time("Creating landmarksRenderer", {TFLandmarksRenderer(model.expressionModel.get.truncate(80, 40, 5), Seq(0))})
+    val landmarkId = "left.eye.corner_outer"
+
+    val landmarkPointId = model.landmarkPointId(landmarkId).get
+
+    val tfLandmarksRenderer = time("Creating landmarksRenderer", {TFLandmarksRenderer(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))})
 
     println(s"Mesh pt0: ${mesh.shape.pointSet.point(PointId(0))}")
     println(s"TFMesh pt0: ${tfMesh.pts(0, 0).scalar}, ${tfMesh.pts(1, 0).scalar}, ${tfMesh.pts(2, 0).scalar}")
@@ -90,10 +94,6 @@ object Example {
     println(s"variableModel pt0: ${results(0, 0).scalar}, ${results(1, 0).scalar}, ${results(2, 0).scalar}")
     val tfLandmarksRendererMesh = tfLandmarksRenderer.getInstance(paramTensor)
     println(s"tfLandmarksRendererMesh pt0: ${tfLandmarksRendererMesh(0, 0).scalar}, ${tfLandmarksRendererMesh(1, 0).scalar}, ${tfLandmarksRendererMesh(2, 0).scalar}")
-
-    val landmarkId = "left.eye.corner_outer"
-
-    val landmarkPointId = model.landmarkPointId(landmarkId).get
 
     val landmarkResults = {
       val landmarkPoint = results(::, landmarkPointId.id).expandDims(1)
@@ -114,7 +114,7 @@ object Example {
 
     println(s"variableModel $landmarkId: ${results(0, landmarkPointId.id).scalar}, ${results(1, landmarkPointId.id).scalar}, ${results(2, landmarkPointId.id).scalar}")
 
-    println(s"tfLandmarksRendererMesh $landmarkId: ${tfLandmarksRendererMesh(0, landmarkPointId.id).scalar}, ${tfLandmarksRendererMesh(1, landmarkPointId.id).scalar}, ${tfLandmarksRendererMesh(2, landmarkPointId.id).scalar}")
+    println(s"tfLandmarksRendererMesh $landmarkId: ${tfLandmarksRendererMesh(0, 1).scalar}, ${tfLandmarksRendererMesh(1, 1).scalar}, ${tfLandmarksRendererMesh(2, 1).scalar}")
 
     val landmarksRenderer = MoMoRenderer(model, RGBA.BlackTransparent)
 
@@ -127,8 +127,7 @@ object Example {
     println(s"TF Landmark: ${landmarkResults.head(0, 0).scalar}, ${landmarkResults.head(1, 0).scalar}, ${landmarkResults.head(2, 0).scalar}")
     println(s"TF Transformed Landmark: ${landmarkResults(1)(0, 0).scalar}, ${landmarkResults(1)(1, 0).scalar}, ${landmarkResults(1)(2, 0).scalar}")
 
-    println(s"TFLandmarksRenderer Landmark: ${tfLandmarks(0, landmarkPointId.id).scalar}, ${tfLandmarks(1, landmarkPointId.id).scalar}, ${tfLandmarks(2, landmarkPointId.id).scalar}")
-    println(tfLandmarks(::, landmarkPointId.id).summarize())
+    println(s"TFLandmarksRenderer Landmark: ${tfLandmarks(0, 1).scalar}, ${tfLandmarks(1, 1).scalar}, ${tfLandmarks(2, 1).scalar}")
 
     System.exit(0)
     /*

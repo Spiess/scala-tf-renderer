@@ -105,9 +105,28 @@ case class TFLandmarksRendererExpression(basisMatrix: Tensor[Float], parameterSt
 object TFLandmarksRenderer {
   def apply(momo: MoMoBasic): TFLandmarksRendererBasic = TFLandmarksRendererBasic()
 
-  def apply(momo: MoMoExpress, landmarkPointIds: Seq[Int]): TFLandmarksRendererExpression = {
-    val shapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
-    val expressionBasis = TFMoMoConversions.toTensor(momo.expression.basisMatrix)
+  /**
+    * Creates a TFLandmarksRenderer for expression models.
+    * The landmarks renderer can be restricted to a specific set of pointIds for efficiency. In that case the results
+    * [[TFLandmarksRendererExpression.getInstance]] and [[TFLandmarksRendererExpression.calculateLandmarks]] will be
+    * only the specified points in the specified order.
+    *
+    * @param momo model to use
+    * @param landmarkPointIds point ids of the desired landmarks or null for all points
+    */
+  def apply(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int] = null): TFLandmarksRendererExpression = {
+
+    val (shapeBasis, expressionBasis) = {
+      val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
+      val fullExpressionBasis = TFMoMoConversions.toTensor(momo.expression.basisMatrix)
+
+      if (landmarkPointIds != null) {
+        val basisIndices = landmarkPointIds.flatMap(i => Seq(i * 3, i * 3 + 1, i * 3 + 2))
+        (fullShapeBasis.gather(basisIndices, 0), fullExpressionBasis.gather(basisIndices, 0))
+      } else {
+        (fullShapeBasis, fullExpressionBasis)
+      }
+    }
 
     val shapeStd = TFMoMoConversions.toTensor(momo.shape.variance.map(math.sqrt)).transpose()
     val expressionStd = TFMoMoConversions.toTensor(momo.expression.variance.map(math.sqrt)).transpose()
@@ -121,6 +140,8 @@ object TFLandmarksRenderer {
       (results.head, results.last)
     }
 
-    TFLandmarksRendererExpression(combinedBasis, combinedStd, TFConversions.pointsToTensor(momo.mean.shape.position.pointData))
+    val meanPoints = TFConversions.pointsToTensor(landmarkPointIds.collect(momo.mean.shape.position.pointData))
+
+    TFLandmarksRendererExpression(combinedBasis, combinedStd, meanPoints)
   }
 }
