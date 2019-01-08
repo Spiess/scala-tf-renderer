@@ -34,14 +34,18 @@ object TFConversions {
 
   def pointsToTensor[A](points: IndexedSeq[A])(implicit vectorizer: Vectorizer[A]): Tensor[Float] = {
     val d = vectorizer.dim
-    val data = Array.fill(points.length * d)(0f)
+    val bufferCapacity = points.length * d * 4
+    val buffer = ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder())
+
     for (i <- points.indices) {
       val vec = vectorizer.vectorize(points(i))
       for (j <- 0 until d) {
-        data(i * d + j) = vec(j).toFloat
+        buffer.putFloat(vec(j).toFloat)
       }
     }
-    Tensor(data).reshape(Shape(points.length, 3)).transpose()
+
+    buffer.flip()
+    Tensor.fromBuffer[Float](Shape(points.length, 3), bufferCapacity, buffer).transpose()
   }
 
   def image3dToTensor(image: PixelImage[RGB]): Tensor[Float] = {
