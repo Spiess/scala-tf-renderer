@@ -141,6 +141,35 @@ object Example {
 
     println(s"TFLandmarksRenderer Landmark: ${tfLandmarks(0, 1).scalar}, ${tfLandmarks(1, 1).scalar}, ${tfLandmarks(2, 1).scalar}")
 
+    val neutralModel = model.neutralModel
+
+    val basicLandmarksRenderer = time("Creating basicLandmarksRenderer", {
+      TFLandmarksRenderer(neutralModel.truncate(80, 40), IndexedSeq(0, landmarkPointId.id))
+    })
+
+    val basicParams = paramTensor(0 :: 80)
+
+    val basicInstance = basicLandmarksRenderer.getInstance(basicParams)
+    val basicLandmarks = basicLandmarksRenderer.calculateLandmarks(basicParams, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
+
+    val neutralMesh = neutralModel.instance(param.momo.coefficients)
+
+    val neutralLandmarksRenderer = MoMoRenderer(neutralModel, RGBA.BlackTransparent)
+    val neutralLandmark = neutralLandmarksRenderer.renderLandmark(landmarkId, param).get
+
+    println("Neutral model evaluation:")
+
+    println(s"Mesh pt0:                    ${neutralMesh.shape.pointSet.point(PointId(0))}")
+    println(s"tfLandmarksRendererMesh pt0: ${basicInstance(0, 0).scalar}, ${basicInstance(1, 0).scalar}, ${basicInstance(2, 0).scalar}")
+    println()
+
+    println(s"Mesh $landmarkId:                    ${neutralMesh.shape.pointSet.point(landmarkPointId)}")
+    println(s"tfLandmarksRendererMesh $landmarkId: ${basicInstance(0, 1).scalar}, ${basicInstance(1, 1).scalar}, ${basicInstance(2, 1).scalar}")
+    println()
+
+    println(s"Normal renderer landmark:     ${neutralLandmark.point}")
+    println(s"TFLandmarksRenderer Landmark: ${basicLandmarks(0, 1).scalar}, ${basicLandmarks(1, 1).scalar}, ${basicLandmarks(2, 1).scalar}")
+
     System.exit(0)
     /*
     =====================================================
