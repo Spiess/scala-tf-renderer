@@ -10,7 +10,6 @@ import scalismo.common.PointId
 import scalismo.faces.color.{RGB, RGBA}
 import scalismo.faces.io.{MeshIO, MoMoIO, PixelImageIO, RenderParameterIO}
 import scalismo.faces.mesh.{ColorNormalMesh3D, VertexColorMesh3D}
-import scalismo.faces.momo.MoMo
 import scalismo.faces.parameters._
 import scalismo.faces.sampling.face.MoMoRenderer
 import scalismo.geometry.Point
@@ -47,25 +46,41 @@ object Example {
     //val mesh = MeshIO.read(new File("/home/andreas/export/mean2012_l7_bfm_pascaltex.msh.gz")).get.colorNormalMesh3D.get
     val mesh = model.instance(param.momo.coefficients)
 
-    time("Writing temp model", {MeshIO.write(mesh, new File("/tmp/jimmi_fit.ply")).get})
+    time("Writing temp model", {
+      MeshIO.write(mesh, new File("/tmp/jimmi_fit.ply")).get
+    })
 
-    val tfMesh = time("Transforming TFMesh", {TFMesh(mesh)})
+    val tfMesh = time("Transforming TFMesh", {
+      TFMesh(mesh)
+    })
 
-    val initPose = time("Transforming TFPose", {TFPose(param.pose)})
-    val initCamera = time("Transforming TFCamera", {TFCamera(param.camera)})
-    val initLight = time("Transforming TFLight", {TFConversions.pointsToTensor(param.environmentMap.coefficients).transpose()})
+    val initPose = time("Transforming TFPose", {
+      TFPose(param.pose)
+    })
+    val initCamera = time("Transforming TFCamera", {
+      TFCamera(param.camera)
+    })
+    val initLight = time("Transforming TFLight", {
+      TFConversions.pointsToTensor(param.environmentMap.coefficients).transpose()
+    })
 
     //val variableModel = new OffsetFromInitializationModel(tfMesh.pts, tfMesh.colors, initPose, initCamera, initLight)
-    val tfModel = time("Creating TFMoMo", {TFMoMo(model.expressionModel.get.truncate(80, 40, 5))})
+    val tfModel = time("Creating TFMoMo", {
+      TFMoMo(model.expressionModel.get.truncate(80, 40, 5))
+    })
     /*
     ==================================
     This part used the incorrect mean!
     ==================================
      */
     //    val tfMean = TFMesh(model.neutralModel.mean)
-    val tfMean = time("Creating mean TFMesh", {TFMesh(model.mean)})
+    val tfMean = time("Creating mean TFMesh", {
+      TFMesh(model.mean)
+    })
 
-    val variableModel = time("Creating variable model", {TFMoMoExpressParameterModel(tfModel, tfMean, initPose, initCamera, initLight)})
+    val variableModel = time("Creating variable model", {
+      TFMoMoExpressParameterModel(tfModel, tfMean, initPose, initCamera, initLight)
+    })
 
     val paramTensor = TFMoMoConversions.toTensor(DenseVector.vertcat(
       param.momo.coefficients.shape,
@@ -74,46 +89,43 @@ object Example {
       DenseVector.zeros[Double](tfModel.expression.shape(1) - param.momo.coefficients.expression.length)
     )).transpose()
 
-    val results = {
-      val session = Session()
+    val results = using(Session())(session => {
       session.run(targets = tf.globalVariablesInitializer())
       val assignOp = variableModel.ptsVar.assign(paramTensor)
       session.run(targets = assignOp)
       session.run(feeds = variableModel.feeds, fetches = variableModel.pts)
-    }
+    })
 
     val landmarkId = "left.eye.corner_outer"
 
     val landmarkPointId = model.landmarkPointId(landmarkId).get
 
-    val tfLandmarksRenderer = time("Creating landmarksRenderer", {TFLandmarksRenderer(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))})
+    val tfLandmarksRenderer = time("Creating landmarksRenderer", {
+      TFLandmarksRenderer(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
+    })
 
-    println(s"Mesh pt0: ${mesh.shape.pointSet.point(PointId(0))}")
-    println(s"TFMesh pt0: ${tfMesh.pts(0, 0).scalar}, ${tfMesh.pts(1, 0).scalar}, ${tfMesh.pts(2, 0).scalar}")
-
-    println(s"variableModel pt0: ${results(0, 0).scalar}, ${results(1, 0).scalar}, ${results(2, 0).scalar}")
     val tfLandmarksRendererMesh = tfLandmarksRenderer.getInstance(paramTensor)
+
+    println(s"Mesh pt0:                    ${mesh.shape.pointSet.point(PointId(0))}")
+    println(s"TFMesh pt0:                  ${tfMesh.pts(0, 0).scalar}, ${tfMesh.pts(1, 0).scalar}, ${tfMesh.pts(2, 0).scalar}")
+    println(s"variableModel pt0:           ${results(0, 0).scalar}, ${results(1, 0).scalar}, ${results(2, 0).scalar}")
     println(s"tfLandmarksRendererMesh pt0: ${tfLandmarksRendererMesh(0, 0).scalar}, ${tfLandmarksRendererMesh(1, 0).scalar}, ${tfLandmarksRendererMesh(2, 0).scalar}")
 
     val landmarkResults = {
       val landmarkPoint = results(::, landmarkPointId.id).expandDims(1)
       println(s"Param image size: ${param.imageSize.width}, ${param.imageSize.height}")
       println(s"Image size: ${image.width}, ${image.height}")
-      println(s"Camera sensor size: ${initCamera.sensorSizeX}, ${initCamera.sensorSizeY}")
       val normalizedDeviceCoordinates = Transformations.objectToNDC(landmarkPoint, TFPose(initPose), TFCamera(initCamera))
       val tfNormalizedDeviceCoordinates = Transformations.ndcToTFNdc(normalizedDeviceCoordinates, image.width, image.height)
       // screenCoordinates are the correct landmark points
       val screenCoordinates = Transformations.screenTransformation(normalizedDeviceCoordinates, image.width, image.height)
       val tfScreenCoordinates = Transformations.screenTransformation(tfNormalizedDeviceCoordinates, image.width, image.height)
 
-      val session = Session()
-      session.run(fetches = Seq(screenCoordinates, tfScreenCoordinates))
+      using(Session())(_.run(fetches = Seq(screenCoordinates, tfScreenCoordinates)))
     }
 
-    println(s"Mesh $landmarkId: ${mesh.shape.pointSet.point(landmarkPointId)}")
-
-    println(s"variableModel $landmarkId: ${results(0, landmarkPointId.id).scalar}, ${results(1, landmarkPointId.id).scalar}, ${results(2, landmarkPointId.id).scalar}")
-
+    println(s"Mesh $landmarkId:                    ${mesh.shape.pointSet.point(landmarkPointId)}")
+    println(s"variableModel $landmarkId:           ${results(0, landmarkPointId.id).scalar}, ${results(1, landmarkPointId.id).scalar}, ${results(2, landmarkPointId.id).scalar}")
     println(s"tfLandmarksRendererMesh $landmarkId: ${tfLandmarksRendererMesh(0, 1).scalar}, ${tfLandmarksRendererMesh(1, 1).scalar}, ${tfLandmarksRendererMesh(2, 1).scalar}")
 
     val landmarksRenderer = MoMoRenderer(model, RGBA.BlackTransparent)
@@ -122,10 +134,10 @@ object Example {
 
     val tfLandmarks = tfLandmarksRenderer.calculateLandmarks(paramTensor, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
 
-    println(s"Normal renderer landmark: ${landmark.point}")
+    println(s"Normal renderer landmark:     ${landmark.point}")
 
-    println(s"TF Landmark: ${landmarkResults.head(0, 0).scalar}, ${landmarkResults.head(1, 0).scalar}, ${landmarkResults.head(2, 0).scalar}")
-    println(s"TF Transformed Landmark: ${landmarkResults(1)(0, 0).scalar}, ${landmarkResults(1)(1, 0).scalar}, ${landmarkResults(1)(2, 0).scalar}")
+    println(s"TF Landmark:                  ${landmarkResults.head(0, 0).scalar}, ${landmarkResults.head(1, 0).scalar}, ${landmarkResults.head(2, 0).scalar}")
+    //    println(s"TF Transformed Landmark: ${landmarkResults(1)(0, 0).scalar}, ${landmarkResults(1)(1, 0).scalar}, ${landmarkResults(1)(2, 0).scalar}")
 
     println(s"TFLandmarksRenderer Landmark: ${tfLandmarks(0, 1).scalar}, ${tfLandmarks(1, 1).scalar}, ${tfLandmarks(2, 1).scalar}")
 

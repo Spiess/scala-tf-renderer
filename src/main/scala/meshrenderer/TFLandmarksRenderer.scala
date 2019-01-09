@@ -24,12 +24,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
   def getInstance(parameters: Tensor[Float]): Tensor[Float] = {
     val mesh = getInstance(parameters.toOutput)
 
-    val session = Session()
-    val result = session.run(fetches = mesh)
-
-    session.close()
-
-    result
+    using(Session())(_.run(fetches = mesh))
   }
 
   /**
@@ -59,12 +54,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
   def calculateLandmarks(parameters: Tensor[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Tensor[Float] = {
     val landmarks = calculateLandmarks(parameters.toOutput, pose, camera, imageWidth, imageHeight)
 
-    val session = Session()
-    val result = session.run(fetches = landmarks)
-
-    session.close()
-
-    result
+    using(Session())(_.run(fetches = landmarks))
   }
 
   /**
@@ -85,7 +75,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
   /**
     * Projects the given points onto an image given the pose, camera and image parameters.
     *
-    * @param points points to be projected onto the image
+    * @param points      points to be projected onto the image
     * @param pose        the pose of the model instance
     * @param camera      the camera for which to project the landmarks
     * @param imageWidth  the width of the rendered image
@@ -99,7 +89,16 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
 }
 
 object TFLandmarksRenderer {
-  def apply(momo: MoMoBasic, landmarkPointIds: IndexedSeq[Int] = null): TFLandmarksRenderer = {
+  /**
+    * Creates a TFLandmarksRenderer for basic morphable models.
+    * The landmarks renderer can be restricted to a specific set of pointIds for efficiency. In that case the results
+    * [[TFLandmarksRenderer.getInstance]] and [[TFLandmarksRenderer.calculateLandmarks]] will be
+    * only the specified points in the specified order.
+    *
+    * @param momo             model to use
+    * @param landmarkPointIds point ids of the desired landmarks or null for all points
+    */
+  def apply(momo: MoMoBasic, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val shapeBasis = {
       val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
 
@@ -124,10 +123,10 @@ object TFLandmarksRenderer {
     * [[TFLandmarksRenderer.getInstance]] and [[TFLandmarksRenderer.calculateLandmarks]] will be
     * only the specified points in the specified order.
     *
-    * @param momo model to use
+    * @param momo             model to use
     * @param landmarkPointIds point ids of the desired landmarks or null for all points
     */
-  def apply(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int] = null): TFLandmarksRenderer = {
+  def apply(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val (shapeBasis, expressionBasis) = {
       val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
       val fullExpressionBasis = TFMoMoConversions.toTensor(momo.expression.basisMatrix)
@@ -143,14 +142,13 @@ object TFLandmarksRenderer {
     val shapeStd = TFMoMoConversions.toTensor(momo.shape.variance.map(math.sqrt)).transpose()
     val expressionStd = TFMoMoConversions.toTensor(momo.expression.variance.map(math.sqrt)).transpose()
 
-    val (combinedBasis, combinedStd) = {
+    val (combinedBasis, combinedStd) = using(Session())(session => {
       val bases = Seq(shapeBasis.toOutput, expressionBasis.toOutput)
       val standardDevs = Seq(shapeStd.toOutput, expressionStd.toOutput)
 
-      val session = Session()
       val results = session.run(fetches = Seq(tf.concatenate(bases, axis = 1), tf.concatenate(standardDevs, axis = 0)))
       (results.head, results.last)
-    }
+    })
 
     val meanPoints = TFConversions.pointsToTensor(landmarkPointIds.collect(momo.mean.shape.position.pointData))
 
