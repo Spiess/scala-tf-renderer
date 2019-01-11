@@ -112,10 +112,14 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
 
   def batchProjectPointsOnImage(points: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
     val translation = pose.translation.transpose().expandDims(0).tile(Tensor(2, 1, 1))
+    val sensorSize = Output(camera.sensorSizeX, camera.sensorSizeY)
+    val principalPoint = Output(camera.principalPointX, camera.principalPointY).expandDims(0).tile(Tensor(2, 1))
+    val roll = pose.roll//.expandDims(0).tile(Tensor(2, 1))
+    val pitch = pose.pitch//.expandDims(0).tile(Tensor(2, 1))
+    val yaw = pose.yaw//.expandDims(0).tile(Tensor(2, 1))
 
-    val normalizedDeviceCoordinates = Transformations.pointsToNDCBatch(points, pose.roll, pose.pitch, pose.yaw,
-      translation, camera.near, camera.far, Output(camera.sensorSizeX, camera.sensorSizeY), camera.focalLength,
-      Output(camera.principalPointX, camera.principalPointY))
+    val normalizedDeviceCoordinates = Transformations.pointsToNDCBatch(points, roll, pitch, yaw,
+      translation, camera.near, camera.far, sensorSize, camera.focalLength, principalPoint)
 
     Transformations.batchScreenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)
   }

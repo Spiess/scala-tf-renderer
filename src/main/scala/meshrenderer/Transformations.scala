@@ -59,33 +59,31 @@ object Transformations {
     val X = {
       val pitchc = tf.cos(pitch)
       val pitchs = tf.sin(pitch)
-      val temp: Seq[Output[Float]] = Seq(
-        1f, 0f, 0f,
-        0f, pitchc, pitchs,
-        0f, -pitchs, pitchc
+      Output(
+        Output(1f, 0f, 0f),
+        Output(0f, pitchc, pitchs),
+        Output(0f, -pitchs, pitchc)
       )
-      tf.stack(temp).reshape(Shape(3, 3))
     }
 
     val Y = {
       val yawc = tf.cos(yaw)
       val yaws = tf.sin(yaw)
-      val temp: Seq[Output[Float]] = Seq(
-        yawc, 0f, -yaws,
-        0f, 1f, 0f,
-        yaws, 0f, yawc)
-      tf.stack(temp).reshape(Shape(3, 3))
+      Output(
+        Output(yawc, 0f, -yaws),
+        Output(0f, 1f, 0f),
+        Output(yaws, 0f, yawc)
+      )
     }
 
     val Z = {
       val rollc = tf.cos(roll)
       val rolls = tf.sin(roll)
-      val temp: Seq[Output[Float]] = Seq(
-        rollc, rolls, 0f,
-        -rolls, rollc, 0f,
-        0f, 0f, 1f
+      Output(
+        Output(rollc, rolls, 0f),
+        Output(-rolls, rollc, 0f),
+        Output(0f, 0f, 1f)
       )
-      tf.stack(temp).reshape(Shape(3, 3))
     }
 
     // TODO
@@ -133,8 +131,8 @@ object Transformations {
     val py = points(::, ::, 1)
     val pz = points(::, ::, 2)
 
-    val newpx = principalPoint(0) - (px * 2f * focalLength) / (pz * sensorSize(0))
-    val newpy = principalPoint(1) - (py * 2f * focalLength) / (pz * sensorSize(1))
+    val newpx = principalPoint(::, 0) - (px * 2f * focalLength) / (pz * sensorSize(0))
+    val newpy = principalPoint(::, 1) - (py * 2f * focalLength) / (pz * sensorSize(1))
     val newpz = (far * near * 2f / pz + near + far) / (far - near)
     tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose() //.reshape(Shape(3,2))
   }
@@ -185,11 +183,11 @@ object Transformations {
     * @param roll           roll values of shape (batchSize, 1)
     * @param pitch          pitch values of shape (batchSize, 1)
     * @param yaw            yaw values of shape (batchSize, 1)
-    * @param translation    translation of shape (batchSize, pointDimensions [x, y, z])
-    * @param cameraNear     values of shape (batchSize, 1)
-    * @param cameraFar      values of shape (batchSize, 1)
-    * @param sensorSize     values of shape (batchSize, 2 [sensorWidth, sensorHeight])
-    * @param focalLength    values of shape (batchSize, 1)
+    * @param translation    translation of shape (batchSize, 1, pointDimensions [x, y, z])
+    * @param cameraNear     values of shape (1)
+    * @param cameraFar      values of shape (1)
+    * @param sensorSize     values of shape (2 [sensorWidth, sensorHeight])
+    * @param focalLength    values of shape (1)
     * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
     * @return normalized device coordinates of shape (batchSize, numPoints, pointDimensions [x, y, z])
     */
