@@ -82,6 +82,8 @@ object Example {
 //      TFMoMoExpressParameterModel(tfModel, tfMean, initPose, initCamera, initLight)
 //    })
 
+    // Parameter initialization
+
     val paramTensorProto = TFMoMoConversions.toTensor(DenseVector.vertcat(
       param.momo.coefficients.shape,
       DenseVector.zeros[Double](80 - param.momo.coefficients.shape.length),
@@ -92,6 +94,17 @@ object Example {
     val paramTensor = paramTensorProto.transpose()
 
     val paramTensorStacked = using(Session())(_.run(fetches = tf.concatenate(Seq(paramTensorProto.toOutput, (paramTensorProto + 1).toOutput), axis = 0)))
+
+    // Prepare render parameters
+    val translation = initPose.translation.transpose().expandDims(0).tile(Tensor(2, 1, 1))
+    val sensorSize = Output(initCamera.sensorSizeX, initCamera.sensorSizeY)
+    val principalPoint = Output(initCamera.principalPointX, initCamera.principalPointY).expandDims(0).tile(Tensor(2, 1))
+    val roll = Output(initPose.roll, -0.1f)
+    val pitch = Output(initPose.pitch, 0.4f)
+    val yaw = Output(initPose.yaw, 0.7f)
+    val cameraNear = initCamera.near
+    val cameraFar = initCamera.far
+    val focalLength = initCamera.focalLength
 
 //    println(paramTensorStacked.shape)
 
@@ -127,7 +140,8 @@ object Example {
 
     val tfLandmarks = tfLandmarksRenderer.calculateLandmarks(paramTensor, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
 
-    val tfBatchLandmarks = tfBatchLandmarksRenderer.batchCalculateLandmarks(paramTensorStacked, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
+    val tfBatchLandmarks = tfBatchLandmarksRenderer.batchCalculateLandmarks(paramTensorStacked, roll, pitch, yaw,
+      translation, cameraNear, cameraFar, sensorSize, focalLength, principalPoint, image.width, image.height)
     //    println("Batch landmarks:")
     //    println(tfBatchLandmarks.summarize())
 
@@ -181,7 +195,8 @@ object Example {
     val basicLandmarks = basicLandmarksRenderer.calculateLandmarks(basicParams, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
 
     val basicBatchInstance = basicBatchLandmarksRenderer.batchGetInstance(basicBatchParams)
-    val basicBatchLandmarks  = basicBatchLandmarksRenderer.batchCalculateLandmarks(basicBatchParams, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
+    val basicBatchLandmarks  = basicBatchLandmarksRenderer.batchCalculateLandmarks(basicBatchParams, roll, pitch, yaw,
+      translation, cameraNear, cameraFar, sensorSize, focalLength, principalPoint, image.width, image.height)
 
 //    println("Basic batch instance:")
 //    println(basicBatchInstance.summarize())

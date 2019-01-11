@@ -83,16 +83,23 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     projectPointsOnImage(points, pose, camera, imageWidth, imageHeight)
   }
 
-  def batchCalculateLandmarks(parameters: Tensor[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Tensor[Float] = {
-    val landmarks = batchCalculateLandmarks(parameters.toOutput, pose, camera, imageWidth, imageHeight)
+  def batchCalculateLandmarks(parameters: Tensor[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
+                              translation: Output[Float], cameraNear: Output[Float], cameraFar: Output[Float],
+                              sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
+                              imageWidth: Int, imageHeight: Int): Tensor[Float] = {
+    val landmarks = batchCalculateLandmarks(parameters.toOutput, roll, pitch, yaw, translation, cameraNear, cameraFar,
+      sensorSize, focalLength, principalPoint, imageWidth, imageHeight)
 
     using(Session())(_.run(fetches = landmarks))
   }
 
-  def batchCalculateLandmarks(parameters: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
+  def batchCalculateLandmarks(parameters: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
+                              translation: Output[Float], cameraNear: Output[Float], cameraFar: Output[Float],
+                              sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
+                              imageWidth: Int, imageHeight: Int): Output[Float] = {
     val points = batchGetInstance(parameters)
 
-    batchProjectPointsOnImage(points, pose, camera, imageWidth, imageHeight)
+    batchProjectPointsOnImage(points, roll, pitch, yaw, translation, cameraNear, cameraFar, sensorSize, focalLength, principalPoint, imageWidth, imageHeight)
   }
 
   /**
@@ -110,16 +117,13 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     Transformations.screenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)
   }
 
-  def batchProjectPointsOnImage(points: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
-    val translation = pose.translation.transpose().expandDims(0).tile(Tensor(2, 1, 1))
-    val sensorSize = Output(camera.sensorSizeX, camera.sensorSizeY)
-    val principalPoint = Output(camera.principalPointX, camera.principalPointY).expandDims(0).tile(Tensor(2, 1))
-    val roll = Output(pose.roll, -0.1f)
-    val pitch = Output(pose.pitch, 0.4f)
-    val yaw = Output(pose.yaw, 0.7f)
+  def batchProjectPointsOnImage(points: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
+                                translation: Output[Float], cameraNear: Output[Float], cameraFar: Output[Float],
+                                sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
+                                imageWidth: Int, imageHeight: Int): Output[Float] = {
 
-    val normalizedDeviceCoordinates = Transformations.pointsToNDCBatch(points, roll, pitch, yaw,
-      translation, camera.near, camera.far, sensorSize, camera.focalLength, principalPoint)
+    val normalizedDeviceCoordinates = Transformations.pointsToNDCBatch(points, roll, pitch, yaw, translation,
+      cameraNear, cameraFar, sensorSize, focalLength, principalPoint)
 
     Transformations.batchScreenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)
   }
