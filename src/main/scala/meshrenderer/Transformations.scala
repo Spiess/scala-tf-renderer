@@ -134,8 +134,11 @@ object Transformations {
     val py = points(::, ::, 1)
     val pz = points(::, ::, 2)
 
-    val newpx = principalPoint(::, 0) - (px * 2f * focalLength) / (pz * sensorSize(0))
-    val newpy = principalPoint(::, 1) - (py * 2f * focalLength) / (pz * sensorSize(1))
+    val ppx = principalPoint(::, 0).expandDims(1)
+    val ppy = principalPoint(::, 1).expandDims(1)
+
+    val newpx = ppx - (px * 2f * focalLength) / (pz * sensorSize(0))
+    val newpy = ppy - (py * 2f * focalLength) / (pz * sensorSize(1))
     val newpz = (far * near * 2f / pz + near + far) / (far - near)
     tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose() //.reshape(Shape(3,2))
   }
