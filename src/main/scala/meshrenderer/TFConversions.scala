@@ -16,6 +16,7 @@ import scalismo.geometry.{Point, Vector, _3D}
   */
 object TFConversions {
 
+  // TODO: Update with more efficient Tensor initialization and better shape (3) or (1, 3)
   def pt2Output(pt: Point[_3D]): Tensor[Float] = {
     Tensor(pt.x.toFloat, pt.y.toFloat, pt.z.toFloat).reshape(Shape(3, 1))
   }

@@ -10,11 +10,11 @@ import scalismo.common.PointId
 import scalismo.faces.color.{RGB, RGBA}
 import scalismo.faces.io.{MeshIO, MoMoIO, PixelImageIO, RenderParameterIO}
 import scalismo.faces.mesh.{ColorNormalMesh3D, VertexColorMesh3D}
+import scalismo.faces.momo.MoMoCoefficients
 import scalismo.faces.parameters._
 import scalismo.faces.sampling.face.MoMoRenderer
 import scalismo.geometry.Point
 import scalismo.mesh.TriangleMesh3D
-
 
 /**
   * Created by andreas on 8/8/18.
@@ -83,28 +83,40 @@ object Example {
 //    })
 
     // Parameter initialization
+    val verificationParam = {
+      val rps = RenderParameterIO.read(new File("../../Documents/datasets/data_300K_fewParameters50_crop_noSensor_lms/0_0.rps")).get
+      rps.copy(momo = rps.momo.copy(expression = rps.momo.expression.take(5)), camera = param.camera.copy(principalPoint = rps.camera.principalPoint), imageSize = param.imageSize)
+    }
 
-    val paramTensorProto = TFMoMoConversions.toTensor(DenseVector.vertcat(
-      param.momo.coefficients.shape,
-      DenseVector.zeros[Double](80 - param.momo.coefficients.shape.length),
-      param.momo.coefficients.expression,
-      DenseVector.zeros[Double](5 - param.momo.coefficients.expression.length)
-    ))
+    def coefficientsToTensor(coefficients: MoMoCoefficients): Tensor[Float] = {
+      TFMoMoConversions.toTensor(DenseVector.vertcat(
+        coefficients.shape,
+        DenseVector.zeros[Double](80 - coefficients.shape.length),
+        coefficients.expression,
+        DenseVector.zeros[Double](5 - coefficients.expression.length)
+      ))
+    }
+
+    val paramTensorProto = coefficientsToTensor(param.momo.coefficients)
+    val verificationParamTensor = coefficientsToTensor(verificationParam.momo.coefficients)
 
     val paramTensor = paramTensorProto.transpose()
 
-    val paramTensorStacked = using(Session())(_.run(fetches = tf.concatenate(Seq(paramTensorProto.toOutput, (paramTensorProto + 1).toOutput), axis = 0)))
+    val paramTensorStacked = using(Session())(_.run(fetches = tf.concatenate(Seq(paramTensorProto.toOutput, verificationParamTensor.toOutput), axis = 0)))
 
     // Prepare render parameters
-    val translation = initPose.translation.transpose().expandDims(0).tile(Tensor(2, 1, 1))
-    val sensorSize = Output(initCamera.sensorSizeX, initCamera.sensorSizeY)
-    val principalPoint = Output(initCamera.principalPointX, initCamera.principalPointY).expandDims(0).tile(Tensor(2, 1))
-    val roll = Output(initPose.roll, -0.1f)
-    val pitch = Output(initPose.pitch, 0.4f)
-    val yaw = Output(initPose.yaw, 0.7f)
-    val cameraNear = initCamera.near
-    val cameraFar = initCamera.far
-    val focalLength = initCamera.focalLength
+    val translation = Tensor(TFConversions.vec2Tensor(param.pose.translation).transpose(), TFConversions.vec2Tensor(verificationParam.pose.translation).transpose())
+    val sensorSize = Output(param.camera.sensorSize.x.toFloat, param.camera.sensorSize.y.toFloat)
+
+    val cameraPrincipalPoint = Output(Output(param.camera.principalPoint.x.toFloat, param.camera.principalPoint.y.toFloat),
+      Output(verificationParam.camera.principalPoint.x.toFloat, verificationParam.camera.principalPoint.y.toFloat))
+
+    val roll = Output(param.pose.roll.toFloat, verificationParam.pose.roll.toFloat)
+    val pitch = Output(param.pose.pitch.toFloat, verificationParam.pose.pitch.toFloat)
+    val yaw = Output(param.pose.yaw.toFloat, verificationParam.pose.yaw.toFloat)
+    val cameraNear = param.camera.near.toFloat
+    val cameraFar = param.camera.far.toFloat
+    val focalLength = param.camera.focalLength.toFloat
 
 //    println(paramTensorStacked.shape)
 
@@ -137,11 +149,13 @@ object Example {
     val landmarksRenderer = MoMoRenderer(model, RGBA.BlackTransparent)
 
     val landmark = landmarksRenderer.renderLandmark(landmarkId, param).get
+    val verificationLandmark = landmarksRenderer.renderLandmark(landmarkId, verificationParam).get
 
     val tfLandmarks = tfLandmarksRenderer.calculateLandmarks(paramTensor, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
+    val tfVerificationLandmarks = tfLandmarksRenderer.calculateLandmarks(verificationParamTensor.transpose(), TFPose(TFPose(verificationParam.pose)), TFCamera(TFCamera(verificationParam.camera)), image.width, image.height)
 
     val tfBatchLandmarks = tfBatchLandmarksRenderer.batchCalculateLandmarks(paramTensorStacked, roll, pitch, yaw,
-      translation, cameraNear, cameraFar, sensorSize, focalLength, principalPoint, image.width, image.height)
+      translation, cameraNear, cameraFar, sensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)
     //    println("Batch landmarks:")
     //    println(tfBatchLandmarks.summarize())
 
@@ -150,6 +164,12 @@ object Example {
 //    println(s"variableModel pt0:           ${results(0, 0).scalar}, ${results(1, 0).scalar}, ${results(2, 0).scalar}")
     println(s"tfLandmarksRendererMesh pt0:      ${tfLandmarksRendererMesh(0, 0).scalar}, ${tfLandmarksRendererMesh(1, 0).scalar}, ${tfLandmarksRendererMesh(2, 0).scalar}")
     println(s"tfBatchLandmarksRendererMesh pt0: ${tfBatchLandmarksRendererMesh(0, 0, 0).scalar}, ${tfBatchLandmarksRendererMesh(0, 0, 1).scalar}, ${tfBatchLandmarksRendererMesh(0, 0, 2).scalar}")
+    println()
+
+    val verificationMesh = model.instance(verificationParam.momo.coefficients)
+
+    println(s"Mesh verification pt0:                         ${verificationMesh.shape.pointSet.point(PointId(0))}")
+    println(s"tfBatchLandmarksRendererMesh verification pt0: ${tfBatchLandmarksRendererMesh(1, 0, 0).scalar}, ${tfBatchLandmarksRendererMesh(1, 0, 1).scalar}, ${tfBatchLandmarksRendererMesh(1, 0, 2).scalar}")
     println()
 
 //    val landmarkResults = {
@@ -171,11 +191,20 @@ object Example {
     println(s"tfBatchLandmarksRendererMesh $landmarkId: ${tfBatchLandmarksRendererMesh(0, 1, 0).scalar}, ${tfBatchLandmarksRendererMesh(0, 1, 1).scalar}, ${tfBatchLandmarksRendererMesh(0, 1, 2).scalar}")
     println()
 
+    println(s"Mesh verification $landmarkId:                         ${verificationMesh.shape.pointSet.point(landmarkPointId)}")
+    println(s"tfBatchLandmarksRendererMesh verification $landmarkId: ${tfBatchLandmarksRendererMesh(1, 1, 0).scalar}, ${tfBatchLandmarksRendererMesh(1, 1, 1).scalar}, ${tfBatchLandmarksRendererMesh(1, 1, 2).scalar}")
+    println()
+
     println(s"Normal renderer landmark:          ${landmark.point}")
 //    println(s"TF Landmark:                  ${landmarkResults.head(0, 0).scalar}, ${landmarkResults.head(1, 0).scalar}, ${landmarkResults.head(2, 0).scalar}")
     //    println(s"TF Transformed Landmark: ${landmarkResults(1)(0, 0).scalar}, ${landmarkResults(1)(1, 0).scalar}, ${landmarkResults(1)(2, 0).scalar}")
     println(s"TFLandmarksRenderer Landmark:      ${tfLandmarks(0, 1).scalar}, ${tfLandmarks(1, 1).scalar}, ${tfLandmarks(2, 1).scalar}")
     println(s"TFBatchLandmarksRenderer Landmark: ${tfBatchLandmarks(0, 1, 0).scalar}, ${tfBatchLandmarks(0, 1, 1).scalar}, ${tfBatchLandmarks(0, 1, 2).scalar}")
+    println()
+
+    println(s"Normal renderer verification landmark:          ${verificationLandmark.point}")
+    println(s"TFLandmarksRenderer verification Landmark:      ${tfVerificationLandmarks(0, 1).scalar}, ${tfVerificationLandmarks(1, 1).scalar}, ${tfVerificationLandmarks(2, 1).scalar}")
+    println(s"TFBatchLandmarksRenderer verification Landmark: ${tfBatchLandmarks(1, 1, 0).scalar}, ${tfBatchLandmarks(1, 1, 1).scalar}, ${tfBatchLandmarks(1, 1, 2).scalar}")
     println()
 
     val neutralModel = model.neutralModel
@@ -196,7 +225,7 @@ object Example {
 
     val basicBatchInstance = basicBatchLandmarksRenderer.batchGetInstance(basicBatchParams)
     val basicBatchLandmarks  = basicBatchLandmarksRenderer.batchCalculateLandmarks(basicBatchParams, roll, pitch, yaw,
-      translation, cameraNear, cameraFar, sensorSize, focalLength, principalPoint, image.width, image.height)
+      translation, cameraNear, cameraFar, sensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)
 
 //    println("Basic batch instance:")
 //    println(basicBatchInstance.summarize())
@@ -205,6 +234,7 @@ object Example {
 
     val neutralLandmarksRenderer = MoMoRenderer(neutralModel, RGBA.BlackTransparent)
     val neutralLandmark = neutralLandmarksRenderer.renderLandmark(landmarkId, param).get
+    val neutralVerificationLandmark = neutralLandmarksRenderer.renderLandmark(landmarkId, verificationParam).get
 
     println("Neutral model evaluation:")
 
@@ -221,6 +251,10 @@ object Example {
     println(s"Normal renderer landmark:          ${neutralLandmark.point}")
     println(s"TFLandmarksRenderer Landmark:      ${basicLandmarks(0, 1).scalar}, ${basicLandmarks(1, 1).scalar}, ${basicLandmarks(2, 1).scalar}")
     println(s"TFBatchLandmarksRenderer Landmark: ${basicBatchLandmarks(0, 1, 0).scalar}, ${basicBatchLandmarks(0, 1, 1).scalar}, ${basicBatchLandmarks(0, 1, 2).scalar}")
+    println()
+
+    println(s"Normal renderer verification landmark:          ${neutralVerificationLandmark.point}")
+    println(s"TFBatchLandmarksRenderer verification Landmark: ${basicBatchLandmarks(1, 1, 0).scalar}, ${basicBatchLandmarks(1, 1, 1).scalar}, ${basicBatchLandmarks(1, 1, 2).scalar}")
 
     System.exit(0)
     /*
