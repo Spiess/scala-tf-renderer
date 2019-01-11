@@ -46,13 +46,13 @@ object Example {
     //val mesh = MeshIO.read(new File("/home/andreas/export/mean2012_l7_bfm_pascaltex.msh.gz")).get.colorNormalMesh3D.get
     val mesh = model.instance(param.momo.coefficients)
 
-    time("Writing temp model", {
-      MeshIO.write(mesh, new File("/tmp/jimmi_fit.ply")).get
-    })
+//    time("Writing temp model", {
+//      MeshIO.write(mesh, new File("/tmp/jimmi_fit.ply")).get
+//    })
 
-    val tfMesh = time("Transforming TFMesh", {
-      TFMesh(mesh)
-    })
+//    val tfMesh = time("Transforming TFMesh", {
+//      TFMesh(mesh)
+//    })
 
     val initPose = time("Transforming TFPose", {
       TFPose(param.pose)
@@ -82,12 +82,20 @@ object Example {
       TFMoMoExpressParameterModel(tfModel, tfMean, initPose, initCamera, initLight)
     })
 
-    val paramTensor = TFMoMoConversions.toTensor(DenseVector.vertcat(
+    val paramTensorProto = TFMoMoConversions.toTensor(DenseVector.vertcat(
       param.momo.coefficients.shape,
-      DenseVector.zeros[Double](tfModel.shape.shape(1) - param.momo.coefficients.shape.length),
+      DenseVector.zeros[Double](80 - param.momo.coefficients.shape.length),
       param.momo.coefficients.expression,
-      DenseVector.zeros[Double](tfModel.expression.shape(1) - param.momo.coefficients.expression.length)
-    )).transpose()
+      DenseVector.zeros[Double](5 - param.momo.coefficients.expression.length)
+    ))
+
+    val paramTensor = paramTensorProto.transpose()
+
+    val paramTensorStacked = using(Session())(_.run(fetches = tf.concatenate(Seq(paramTensorProto.toOutput, (paramTensorProto + 1).toOutput), axis = 0)))
+
+    println(paramTensorStacked.shape)
+
+    println(paramTensor.shape)
 
     val results = using(Session())(session => {
       session.run(targets = tf.globalVariablesInitializer())
@@ -105,9 +113,11 @@ object Example {
     })
 
     val tfLandmarksRendererMesh = tfLandmarksRenderer.getInstance(paramTensor)
+    println("LandmarksRenderer Mesh:")
+    println(tfLandmarksRendererMesh.summarize())
 
     println(s"Mesh pt0:                    ${mesh.shape.pointSet.point(PointId(0))}")
-    println(s"TFMesh pt0:                  ${tfMesh.pts(0, 0).scalar}, ${tfMesh.pts(1, 0).scalar}, ${tfMesh.pts(2, 0).scalar}")
+//    println(s"TFMesh pt0:                  ${tfMesh.pts(0, 0).scalar}, ${tfMesh.pts(1, 0).scalar}, ${tfMesh.pts(2, 0).scalar}")
     println(s"variableModel pt0:           ${results(0, 0).scalar}, ${results(1, 0).scalar}, ${results(2, 0).scalar}")
     println(s"tfLandmarksRendererMesh pt0: ${tfLandmarksRendererMesh(0, 0).scalar}, ${tfLandmarksRendererMesh(1, 0).scalar}, ${tfLandmarksRendererMesh(2, 0).scalar}")
 
@@ -177,6 +187,7 @@ object Example {
     =====================================================
      */
 
+    /*
     val renderer = TFRenderer(tfMesh, variableModel.pts, variableModel.colors, variableModel.pose, variableModel.camera, variableModel.illumination, param.imageSize.width, param.imageSize.height)
 
     def renderInitialParametersAndCompareToGroundTruth(): Unit = {
@@ -331,6 +342,7 @@ object Example {
 
     val finalFullMesh = VertexColorMesh3D(finalMesh, mesh.color)
     MeshIO.write(finalFullMesh, new File("/tmp/jimmi.ply")).get
+    */
 
   }
 

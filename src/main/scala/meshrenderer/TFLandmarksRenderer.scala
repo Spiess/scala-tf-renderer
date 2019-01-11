@@ -39,6 +39,18 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     meanMesh + offsets
   }
 
+  def batchGetInstance(parameters: Output[Float]): Output[Float] = {
+    val offsets = tf.matmul(parameters * parameterStd, basisMatrix).reshape(Shape(parameters.shape(0), basisMatrix.shape(0) / 3, 3))
+
+    val result = using(Session())(_.run(fetches = offsets))
+    println("Offsets:")
+    println(result.summarize())
+    println("Mean mesh:")
+    println(meanMesh.summarize())
+
+    meanMesh + offsets
+  }
+
   /**
     * Calculates landmark positions in the rendered image for the given parameters.
     * <br>
@@ -85,6 +97,13 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
   def projectPointsOnImage(points: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
     val normalizedDeviceCoordinates = Transformations.objectToNDC(points, pose, camera)
     Transformations.screenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)
+  }
+
+  def batchProjectPointsOnImage(points: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
+    val normalizedDeviceCoordinates = Transformations.pointsToNDCBatch(points, pose.roll, pose.pitch, pose.yaw,
+      pose.translation, camera.near, camera.far, Output(camera.sensorSizeX, camera.sensorSizeY), camera.focalLength,
+      Output(camera.principalPointX, camera.principalPointY))
+    Transformations.batchScreenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)
   }
 }
 

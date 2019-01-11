@@ -32,7 +32,12 @@ object TFConversions {
     Tensor(Seq(pt.x.toFloat, pt.y.toFloat, pt.z.toFloat)).reshape(Shape(3, 1))
   }
 
+  @deprecated
   def pointsToTensor[A](points: IndexedSeq[A])(implicit vectorizer: Vectorizer[A]): Tensor[Float] = {
+    pointsToTensorNotTransposed(points).transpose()
+  }
+
+  def pointsToTensorNotTransposed[A](points: IndexedSeq[A])(implicit vectorizer: Vectorizer[A]): Tensor[Float] = {
     val d = vectorizer.dim
     val bufferCapacity = points.length * d * 4
     val buffer = ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder())
@@ -45,7 +50,7 @@ object TFConversions {
     }
 
     buffer.flip()
-    Tensor.fromBuffer[Float](Shape(points.length, 3), bufferCapacity, buffer).transpose()
+    Tensor.fromBuffer[Float](Shape(points.length, 3), bufferCapacity, buffer)
   }
 
   def image3dToTensor(image: PixelImage[RGB]): Tensor[Float] = {

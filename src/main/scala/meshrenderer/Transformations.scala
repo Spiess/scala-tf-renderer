@@ -13,6 +13,10 @@ object Transformations {
     poseRotationTransform(pt, pitch, yaw, roll) + translation
   }
 
+  def batchPoseTransform(points: Output[Float], pitch: Output[Float], yaw: Output[Float], roll: Output[Float], translation: Output[Float]): Output[Float] = {
+    batchPoseRotationTransform(points, pitch, yaw, roll) + translation
+  }
+
   def poseRotationTransform(pt: Output[Float], pitch: Output[Float], yaw: Output[Float], roll: Output[Float]): Output[Float] = {
     val X = {
       val pitchc = tf.cos(pitch)
@@ -21,7 +25,7 @@ object Transformations {
         0f, pitchc, -pitchs,
         0f, pitchs, pitchc
       )
-      tf.stack(temp).reshape(Shape(3,3))
+      tf.stack(temp).reshape(Shape(3, 3))
     }
 
     val Y = {
@@ -30,7 +34,7 @@ object Transformations {
       val temp: Seq[Output[Float]] = Seq(yawc, 0f, yaws,
         0f, 1f, 0f,
         -yaws, 0f, yawc)
-      tf.stack(temp).reshape(Shape(3,3))
+      tf.stack(temp).reshape(Shape(3, 3))
     }
 
     val Z = {
@@ -40,9 +44,46 @@ object Transformations {
         rolls, rollc, 0f,
         0f, 0f, 1f
       )
-      tf.stack(temp).reshape(Shape(3,3))
+      tf.stack(temp).reshape(Shape(3, 3))
     }
-    tf.matmul(Z, tf.matmul(Y,tf.matmul(X,pt)))
+    tf.matmul(Z, tf.matmul(Y, tf.matmul(X, pt)))
+  }
+
+  def batchPoseRotationTransform(points: Output[Float], pitch: Output[Float], yaw: Output[Float], roll: Output[Float]): Output[Float] = {
+    val X = {
+      val pitchc = tf.cos(pitch)
+      val pitchs = tf.sin(pitch)
+      val temp: Seq[Output[Float]] = Seq(1f, 0f, 0f,
+        0f, pitchc, -pitchs,
+        0f, pitchs, pitchc
+      )
+      tf.stack(temp).reshape(Shape(3, 3))
+    }
+
+    val Y = {
+      val yawc = tf.cos(yaw)
+      val yaws = tf.sin(yaw)
+      val temp: Seq[Output[Float]] = Seq(yawc, 0f, yaws,
+        0f, 1f, 0f,
+        -yaws, 0f, yawc)
+      tf.stack(temp).reshape(Shape(3, 3))
+    }
+
+    val Z = {
+      val rollc = tf.cos(roll)
+      val rolls = tf.sin(roll)
+      val temp: Seq[Output[Float]] = Seq(rollc, -rolls, 0f,
+        rolls, rollc, 0f,
+        0f, 0f, 1f
+      )
+      tf.stack(temp).reshape(Shape(3, 3))
+    }
+
+    val nz = Z.expandDims(0).tile(Tensor(2, 1, 1))
+    val ny = Y.expandDims(0).tile(Tensor(2, 1, 1))
+    val nx = X.expandDims(0).tile(Tensor(2, 1, 1))
+
+    tf.matmul(nz, tf.matmul(ny, tf.matmul(nx, points.transpose(Tensor(0, 2, 1)))))
   }
 
   def projectiveTransformation(pt: Output[Float],
@@ -61,10 +102,25 @@ object Transformations {
     val py = pt(1, ::)
     val pz = pt(2, ::)
 
-    val newpx = ppx -  (px * 2f * fl)/(pz * ssx)
-    val newpy = ppy -  (py * 2f * fl)/(pz * ssy)
-    val newpz = (f * n * 2f / pz + n + f)/(f-n)
-    tf.stack(Seq(newpx, newpy, newpz), axis=1).transpose()//.reshape(Shape(3,2))
+    val newpx = ppx - (px * 2f * fl) / (pz * ssx)
+    val newpy = ppy - (py * 2f * fl) / (pz * ssy)
+    val newpz = (f * n * 2f / pz + n + f) / (f - n)
+    tf.stack(Seq(newpx, newpy, newpz), axis = 1).transpose() //.reshape(Shape(3,2))
+  }
+
+  def batchProjectiveTransformation(points: Output[Float],
+                                    near: Output[Float], far: Output[Float],
+                                    sensorSize: Output[Float],
+                                    focalLength: Output[Float],
+                                    principalPoint: Output[Float]): Output[Float] = {
+    val px = points(::, 0, ::)
+    val py = points(::, 1, ::)
+    val pz = points(::, 2, ::)
+
+    val newpx = principalPoint(0) - (px * 2f * focalLength) / (pz * sensorSize(0))
+    val newpy = principalPoint(1) - (py * 2f * focalLength) / (pz * sensorSize(1))
+    val newpz = (far * near * 2f / pz + near + far) / (far - near)
+    tf.stack(Seq(newpx, newpy, newpz), axis = 1).transpose() //.reshape(Shape(3,2))
   }
 
   def screenTransformation(pt: Output[Float], width: Output[Float], height: Output[Float]): Output[Float] = {
@@ -75,12 +131,25 @@ object Transformations {
     val pz = pt(2, ::)
     val newpx = (px + 1f) * width / 2f
     val newpy = (-py + 1f) * height / 2f
-    val newpz = pz * (f-n)/2f+(f+n)/2f
-    tf.stack(Seq(newpx, newpy, newpz), axis=1).transpose()
+    val newpz = pz * (f - n) / 2f + (f + n) / 2f
+    tf.stack(Seq(newpx, newpy, newpz), axis = 1).transpose()
+  }
+
+  def batchScreenTransformation(pt: Output[Float], width: Output[Float], height: Output[Float]): Output[Float] = {
+    val n = 0f
+    val f = 1f
+    val px = pt(::, 0, ::)
+    val py = pt(::, 1, ::)
+    val pz = pt(::, 2, ::)
+    val newpx = (px + 1f) * width / 2f
+    val newpy = (-py + 1f) * height / 2f
+    val newpz = pz * (f - n) / 2f + (f + n) / 2f
+    tf.stack(Seq(newpx, newpy, newpz), axis = 1).transpose()
   }
 
   // TODO: Change the way points are stored: change (dimension, point) to (point dimension) because this is incredibly unintuitive and often inconvenient
 
+  @deprecated
   def objectToNDC(pts: Output[Float], pose: TFPose, camera: TFCamera): Output[Float] = {
     val poseTransformed = poseTransform(pts, pose.pitch, pose.yaw, pose.roll, pose.translation)
 
@@ -93,15 +162,45 @@ object Transformations {
     )
   }
 
-  /** normalized device coordinates of rasterizer are different than in the scalismo-faces renderer.*/
+  /**
+    * Transforms a batch of point lists to a batch of normalized device coordinates.
+    *
+    * @param points         mesh points of shape (batchSize, pointDimensions [x, y, z], numPoints)
+    * @param roll           roll values of shape (batchSize, 1)
+    * @param pitch          pitch values of shape (batchSize, 1)
+    * @param yaw            yaw values of shape (batchSize, 1)
+    * @param translation    translation of shape (batchSize, pointDimensions [x, y, z])
+    * @param cameraNear     values of shape (batchSize, 1)
+    * @param cameraFar      values of shape (batchSize, 1)
+    * @param sensorSize     values of shape (batchSize, 2 [sensorWidth, sensorHeight])
+    * @param focalLength    values of shape (batchSize, 1)
+    * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
+    * @return normalized device coordinates of shape (batchSize, pointDimensions, numPoints)
+    */
+  def pointsToNDCBatch(
+                        points: Output[Float],
+                        roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
+                        translation: Output[Float],
+                        cameraNear: Output[Float], cameraFar: Output[Float],
+                        sensorSize: Output[Float],
+                        focalLength: Output[Float],
+                        principalPoint: Output[Float]
+                      ): Output[Float] = {
+    val poseTransformed = batchPoseTransform(points, pitch, yaw, roll, translation)
+
+    batchProjectiveTransformation(poseTransformed, cameraNear, cameraFar, sensorSize, focalLength, principalPoint)
+  }
+
+  /** normalized device coordinates of rasterizer are different than in the scalismo-faces renderer. */
   def ndcToTFNdc(pts: Output[Float], width: Int, height: Int): Output[Float] = {
     val px = pts(0, ::)
     val py = pts(1, ::)
     val pz = pts(2, ::)
-    val yoffset = 1f/height//there is a 0.5 pixel diagonal shift between the tf mesh rasterizer and the scalismo-faces renderer,
-    val xoffset = 1f/width
+    val yoffset = 1f / height
+    //there is a 0.5 pixel diagonal shift between the tf mesh rasterizer and the scalismo-faces renderer,
+    val xoffset = 1f / width
     //tf.stack(Seq(-py+offset, px, pz), axis=1).transpose()
-    tf.stack(Seq(px+xoffset, -py+yoffset, pz))
+    tf.stack(Seq(px + xoffset, -py + yoffset, pz))
   }
 
   def renderTransform(pts: Output[Float], pose: TFPose, camera: TFCamera, width: Output[Float], height: Output[Float]): Output[Float] = {
@@ -111,12 +210,12 @@ object Transformations {
 
   def bccScreenToWorldCorrection(bccScreen: Output[Float], zBuffer: Output[Float], zCoordinatesPerVertex: Output[Float]): Output[Float] = {
     val d = zBuffer
-    val z1 = zCoordinatesPerVertex(::,::,0)
-    val z2 = zCoordinatesPerVertex(::,::,1)
-    val z3 = zCoordinatesPerVertex(::,::,2)
-    val a = bccScreen(::,::,0)
-    val b = bccScreen(::,::,1)
-    val c = bccScreen(::,::,2)
+    val z1 = zCoordinatesPerVertex(::, ::, 0)
+    val z2 = zCoordinatesPerVertex(::, ::, 1)
+    val z3 = zCoordinatesPerVertex(::, ::, 2)
+    val a = bccScreen(::, ::, 0)
+    val b = bccScreen(::, ::, 1)
+    val c = bccScreen(::, ::, 2)
     //val d = z2*z3 + z3*b * (z1-z2) + z2*c * (z1-z3)
     val dIsZero = tf.where(tf.equal(d, 0f))
     val newBccDIsZero = bccScreen * dIsZero.toFloat
@@ -140,11 +239,11 @@ object Transformations {
     println("point:", ptsScal(0))
     println("ground truth: ", gt)
     println("result: ", tfRes)
-    require(tfRes(0,0,0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
+    require(tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
     require(
       withinEps(gt.x, tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0)) &&
-      withinEps(gt.y, tfRes(0, 1, 0).entriesIterator.toIndexedSeq(0)) &&
-      withinEps(gt.z, tfRes(0, 2, 0).entriesIterator.toIndexedSeq(0))
+        withinEps(gt.y, tfRes(0, 1, 0).entriesIterator.toIndexedSeq(0)) &&
+        withinEps(gt.z, tfRes(0, 2, 0).entriesIterator.toIndexedSeq(0))
     )
   }
 
@@ -159,23 +258,23 @@ object Transformations {
     println("ground truth: ", gt)
     println("result: ", tfRes.summarize())
     println(pts.dataType)
-    require(tfRes(0,0,0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
+    require(tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
     require(
-      withinEps(gt.x, tfRes(0,0,0).entriesIterator.toIndexedSeq(0)) &&
-      withinEps(gt.y, tfRes(0,1,0).entriesIterator.toIndexedSeq(0)) &&
-      withinEps(gt.z, tfRes(0,2,0).entriesIterator.toIndexedSeq(0))
+      withinEps(gt.x, tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0)) &&
+        withinEps(gt.y, tfRes(0, 1, 0).entriesIterator.toIndexedSeq(0)) &&
+        withinEps(gt.z, tfRes(0, 2, 0).entriesIterator.toIndexedSeq(0))
     )
   }
 
-  def withinEps(a: Double,b: Float): Boolean = {
-    math.abs(a-b) < 0.0001f
+  def withinEps(a: Double, b: Float): Boolean = {
+    math.abs(a - b) < 0.0001f
   }
 
   def testPose(pts: Tensor[Float], ptsScal: IndexedSeq[Point[_3D]]): Unit = {
     val yaw = 1f
     val pitch = 0.1f
     val roll = -0.1f
-    val translation = Vector(-10,100,-1000)
+    val translation = Vector(-10, 100, -1000)
     val pose = Pose(1.0, translation, roll, yaw, pitch)
 
     val session = Session()
@@ -189,11 +288,11 @@ object Transformations {
     println("ground truth: ", gt)
     println("result: ", tfRes)
     println(tfRes.summarize())
-    require(tfRes(0,0,0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
+    require(tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
     require(
-      withinEps(gt.x, tfRes(0,0,0).entriesIterator.toIndexedSeq(0)) &&
-        withinEps(gt.y, tfRes(0,1,0).entriesIterator.toIndexedSeq(0)) &&
-        withinEps(gt.z, tfRes(0,2,0).entriesIterator.toIndexedSeq(0))
+      withinEps(gt.x, tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0)) &&
+        withinEps(gt.y, tfRes(0, 1, 0).entriesIterator.toIndexedSeq(0)) &&
+        withinEps(gt.z, tfRes(0, 2, 0).entriesIterator.toIndexedSeq(0))
     )
   }
 
@@ -202,27 +301,27 @@ object Transformations {
 
     val rnd = Random(100000L)
 
-    val tx = 0 + rnd.scalaRandom.nextDouble()*20
-    val ty = 0 + rnd.scalaRandom.nextDouble()*20
-    val tz = - 1000 + rnd.scalaRandom.nextDouble()*20
+    val tx = 0 + rnd.scalaRandom.nextDouble() * 20
+    val ty = 0 + rnd.scalaRandom.nextDouble() * 20
+    val tz = -1000 + rnd.scalaRandom.nextDouble() * 20
     val roll = rnd.scalaRandom.nextDouble()
     val yaw = rnd.scalaRandom.nextDouble()
     val pitch = rnd.scalaRandom.nextDouble()
     val w = rnd.scalaRandom.nextInt(50) + 50
     val h = rnd.scalaRandom.nextInt(50) + 50
-    val pose = Pose(1.0, Vector(tx,ty,tz), roll, yaw, pitch)
+    val pose = Pose(1.0, Vector(tx, ty, tz), roll, yaw, pitch)
 
-    val param = RenderParameter.defaultSquare.withPose(pose).withImageSize(ImageSize(w,h))
+    val param = RenderParameter.defaultSquare.withPose(pose).withImageSize(ImageSize(w, h))
 
     val inScreen = renderTransform(pts, TFPose(TFPose(param.pose)), TFCamera(TFCamera(param.camera)), w, h)
 
     val result = session.run(fetches = Seq(inScreen)).toTensor
 
     val gt = param.renderTransform(ptsScal(0))
-    require(result(0,0,0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
-    require(withinEps(gt.x, result(0,0,0).entriesIterator.toIndexedSeq(0)) &&
-      withinEps(gt.y, result(0,1,0).entriesIterator.toIndexedSeq(0)) &&
-      withinEps(gt.z, result(0,2,0).entriesIterator.toIndexedSeq(0))
+    require(result(0, 0, 0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
+    require(withinEps(gt.x, result(0, 0, 0).entriesIterator.toIndexedSeq(0)) &&
+      withinEps(gt.y, result(0, 1, 0).entriesIterator.toIndexedSeq(0)) &&
+      withinEps(gt.z, result(0, 2, 0).entriesIterator.toIndexedSeq(0))
     )
   }
 
@@ -235,13 +334,16 @@ object Transformations {
 
   def main(args: Array[String]): Unit = {
     val rnd = Random(100000L)
-    def rndP() = Point(rnd.scalaRandom.nextDouble()*10,rnd.scalaRandom.nextDouble(),rnd.scalaRandom.nextDouble()*10)
+
+    def rndP() = Point(rnd.scalaRandom.nextDouble() * 10, rnd.scalaRandom.nextDouble(), rnd.scalaRandom.nextDouble() * 10)
+
     val pt = rndP()
-    val pt2 = rndP()//Point(2,-1,5)
+    val pt2 = rndP()
+    //Point(2,-1,5)
     val ptsScal = IndexedSeq(pt, pt2)
     val tfPt = TFConversions.pt2Output(pt)
     val tfPt2 = TFConversions.pt2Output(pt2)
-    val pts = Tensor(tfPt, tfPt2).transpose().reshape(Shape(3,2))
+    val pts = Tensor(tfPt, tfPt2).transpose().reshape(Shape(3, 2))
 
     //val pts2 = tf.stack(Seq(Seq(tfPt(0), tfPt(1), tfPt(2)), Seq(tfPt2(0), tfPt2(1), tfPt2(2))), axis=1).reshape(Shape(3,2))
     println(pts.shape)
