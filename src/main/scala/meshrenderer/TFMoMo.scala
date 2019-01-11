@@ -84,12 +84,17 @@ object TFMoMoConversions {
   }
 
   def toTensor(mat: DenseMatrix[Double]): Tensor[Float] = {
+    toTensorNotTransposed(mat).transpose()
+  }
+
+  def toTensorNotTransposed(mat: DenseMatrix[Double]): Tensor[Float] = {
     val bufferCapacity = mat.size * 4
     val buffer = ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder())
     mat.toArray.map(_.toFloat).foreach(buffer.putFloat)
     buffer.flip()
-    Tensor.fromBuffer[Float](Shape(mat.cols, mat.rows), bufferCapacity, buffer).transpose()
+    Tensor.fromBuffer[Float](Shape(mat.cols, mat.rows), bufferCapacity, buffer)
   }
+
   def toTensor(vec: DenseVector[Double]): Tensor[Float] = {
     val bufferCapacity = vec.size * 4
     val buffer = ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder())

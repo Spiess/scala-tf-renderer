@@ -39,8 +39,14 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     meanMesh + offsets
   }
 
+  def batchGetInstance(parameters: Tensor[Float]): Tensor[Float] = {
+    val mesh = batchGetInstance(parameters.toOutput)
+
+    using(Session())(_.run(fetches = mesh))
+  }
+
   def batchGetInstance(parameters: Output[Float]): Output[Float] = {
-    val offsets = tf.matmul(parameters * parameterStd, basisMatrix).reshape(Shape(parameters.shape(0), basisMatrix.shape(0) / 3, 3))
+    val offsets = tf.matmul(parameters * parameterStd, basisMatrix).reshape(Shape(parameters.shape(0), basisMatrix.shape(1) / 3, 3))
 
     val result = using(Session())(_.run(fetches = offsets))
     println("Offsets:")
@@ -132,6 +138,25 @@ object TFLandmarksRenderer {
     val shapeStd = TFMoMoConversions.toTensor(momo.shape.variance.map(math.sqrt)).transpose()
 
     val meanPoints = TFConversions.pointsToTensor(landmarkPointIds.collect(momo.mean.shape.position.pointData))
+
+    TFLandmarksRenderer(shapeBasis, shapeStd, meanPoints)
+  }
+
+  def notTransposed(momo: MoMoBasic, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
+    val shapeBasis = {
+      val fullShapeBasis = TFMoMoConversions.toTensorNotTransposed(momo.shape.basisMatrix)
+
+      if (landmarkPointIds != null) {
+        val basisIndices = landmarkPointIds.flatMap(i => Seq(i * 3, i * 3 + 1, i * 3 + 2))
+        fullShapeBasis.gather(basisIndices, 1)
+      } else {
+        fullShapeBasis
+      }
+    }
+
+    val shapeStd = TFMoMoConversions.toTensor(momo.shape.variance.map(math.sqrt))
+
+    val meanPoints = TFConversions.pointsToTensorNotTransposed(landmarkPointIds.collect(momo.mean.shape.position.pointData))
 
     TFLandmarksRenderer(shapeBasis, shapeStd, meanPoints)
   }
