@@ -181,7 +181,7 @@ object Transformations {
   /**
     * Transforms a batch of point lists to a batch of normalized device coordinates.
     *
-    * @param points         mesh points of shape (batchSize, pointDimensions [x, y, z], numPoints)
+    * @param points         mesh points of shape (batchSize, numPoints, pointDimensions [x, y, z])
     * @param roll           roll values of shape (batchSize, 1)
     * @param pitch          pitch values of shape (batchSize, 1)
     * @param yaw            yaw values of shape (batchSize, 1)
@@ -191,7 +191,7 @@ object Transformations {
     * @param sensorSize     values of shape (batchSize, 2 [sensorWidth, sensorHeight])
     * @param focalLength    values of shape (batchSize, 1)
     * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
-    * @return normalized device coordinates of shape (batchSize, pointDimensions, numPoints)
+    * @return normalized device coordinates of shape (batchSize, numPoints, pointDimensions [x, y, z])
     */
   def pointsToNDCBatch(
                         points: Output[Float],
