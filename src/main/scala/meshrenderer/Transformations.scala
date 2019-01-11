@@ -46,16 +46,23 @@ object Transformations {
       )
       tf.stack(temp).reshape(Shape(3, 3))
     }
-    tf.matmul(Z, tf.matmul(Y, tf.matmul(X, pt)))
+    val multX = tf.matmul(X, pt)
+
+    val multY = tf.matmul(Y, multX)
+
+    val multZ = tf.matmul(Z, multY)
+
+    multZ
   }
 
   def batchPoseRotationTransform(points: Output[Float], pitch: Output[Float], yaw: Output[Float], roll: Output[Float]): Output[Float] = {
     val X = {
       val pitchc = tf.cos(pitch)
       val pitchs = tf.sin(pitch)
-      val temp: Seq[Output[Float]] = Seq(1f, 0f, 0f,
-        0f, pitchc, -pitchs,
-        0f, pitchs, pitchc
+      val temp: Seq[Output[Float]] = Seq(
+        1f, 0f, 0f,
+        0f, pitchc, pitchs,
+        0f, -pitchs, pitchc
       )
       tf.stack(temp).reshape(Shape(3, 3))
     }
@@ -63,27 +70,36 @@ object Transformations {
     val Y = {
       val yawc = tf.cos(yaw)
       val yaws = tf.sin(yaw)
-      val temp: Seq[Output[Float]] = Seq(yawc, 0f, yaws,
+      val temp: Seq[Output[Float]] = Seq(
+        yawc, 0f, -yaws,
         0f, 1f, 0f,
-        -yaws, 0f, yawc)
+        yaws, 0f, yawc)
       tf.stack(temp).reshape(Shape(3, 3))
     }
 
     val Z = {
       val rollc = tf.cos(roll)
       val rolls = tf.sin(roll)
-      val temp: Seq[Output[Float]] = Seq(rollc, -rolls, 0f,
-        rolls, rollc, 0f,
+      val temp: Seq[Output[Float]] = Seq(
+        rollc, rolls, 0f,
+        -rolls, rollc, 0f,
         0f, 0f, 1f
       )
       tf.stack(temp).reshape(Shape(3, 3))
     }
 
+    // TODO
     val nz = Z.expandDims(0).tile(Tensor(2, 1, 1))
     val ny = Y.expandDims(0).tile(Tensor(2, 1, 1))
     val nx = X.expandDims(0).tile(Tensor(2, 1, 1))
 
-    tf.matmul(nz, tf.matmul(ny, tf.matmul(nx, points.transpose(Tensor(0, 2, 1)))))
+    val multX = tf.matmul(points, nx)
+
+    val multY = tf.matmul(multX, ny)
+
+    val multZ = tf.matmul(multY, nz)
+
+    multZ
   }
 
   def projectiveTransformation(pt: Output[Float],
@@ -113,14 +129,14 @@ object Transformations {
                                     sensorSize: Output[Float],
                                     focalLength: Output[Float],
                                     principalPoint: Output[Float]): Output[Float] = {
-    val px = points(::, 0, ::)
-    val py = points(::, 1, ::)
-    val pz = points(::, 2, ::)
+    val px = points(::, ::, 0)
+    val py = points(::, ::, 1)
+    val pz = points(::, ::, 2)
 
     val newpx = principalPoint(0) - (px * 2f * focalLength) / (pz * sensorSize(0))
     val newpy = principalPoint(1) - (py * 2f * focalLength) / (pz * sensorSize(1))
     val newpz = (far * near * 2f / pz + near + far) / (far - near)
-    tf.stack(Seq(newpx, newpy, newpz), axis = 1).transpose() //.reshape(Shape(3,2))
+    tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose() //.reshape(Shape(3,2))
   }
 
   def screenTransformation(pt: Output[Float], width: Output[Float], height: Output[Float]): Output[Float] = {
@@ -138,13 +154,13 @@ object Transformations {
   def batchScreenTransformation(pt: Output[Float], width: Output[Float], height: Output[Float]): Output[Float] = {
     val n = 0f
     val f = 1f
-    val px = pt(::, 0, ::)
-    val py = pt(::, 1, ::)
-    val pz = pt(::, 2, ::)
+    val px = pt(::, ::, 0)
+    val py = pt(::, ::, 1)
+    val pz = pt(::, ::, 2)
     val newpx = (px + 1f) * width / 2f
     val newpy = (-py + 1f) * height / 2f
     val newpz = pz * (f - n) / 2f + (f + n) / 2f
-    tf.stack(Seq(newpx, newpy, newpz), axis = 1).transpose()
+    tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose()
   }
 
   // TODO: Change the way points are stored: change (dimension, point) to (point dimension) because this is incredibly unintuitive and often inconvenient

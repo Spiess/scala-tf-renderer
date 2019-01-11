@@ -47,13 +47,6 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
 
   def batchGetInstance(parameters: Output[Float]): Output[Float] = {
     val offsets = tf.matmul(parameters * parameterStd, basisMatrix).reshape(Shape(parameters.shape(0), basisMatrix.shape(1) / 3, 3))
-
-    val result = using(Session())(_.run(fetches = offsets))
-    println("Offsets:")
-    println(result.summarize())
-    println("Mean mesh:")
-    println(meanMesh.summarize())
-
     meanMesh + offsets
   }
 
@@ -90,6 +83,18 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     projectPointsOnImage(points, pose, camera, imageWidth, imageHeight)
   }
 
+  def batchCalculateLandmarks(parameters: Tensor[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Tensor[Float] = {
+    val landmarks = batchCalculateLandmarks(parameters.toOutput, pose, camera, imageWidth, imageHeight)
+
+    using(Session())(_.run(fetches = landmarks))
+  }
+
+  def batchCalculateLandmarks(parameters: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
+    val points = batchGetInstance(parameters)
+
+    batchProjectPointsOnImage(points, pose, camera, imageWidth, imageHeight)
+  }
+
   /**
     * Projects the given points onto an image given the pose, camera and image parameters.
     *
@@ -106,9 +111,12 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
   }
 
   def batchProjectPointsOnImage(points: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
+    val translation = pose.translation.transpose().expandDims(0).tile(Tensor(2, 1, 1))
+
     val normalizedDeviceCoordinates = Transformations.pointsToNDCBatch(points, pose.roll, pose.pitch, pose.yaw,
-      pose.translation, camera.near, camera.far, Output(camera.sensorSizeX, camera.sensorSizeY), camera.focalLength,
+      translation, camera.near, camera.far, Output(camera.sensorSizeX, camera.sensorSizeY), camera.focalLength,
       Output(camera.principalPointX, camera.principalPointY))
+
     Transformations.batchScreenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)
   }
 }
@@ -195,6 +203,35 @@ object TFLandmarksRenderer {
     })
 
     val meanPoints = TFConversions.pointsToTensor(landmarkPointIds.collect(momo.mean.shape.position.pointData))
+
+    TFLandmarksRenderer(combinedBasis, combinedStd, meanPoints)
+  }
+
+  def notTransposed(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
+    val (shapeBasis, expressionBasis) = {
+      val fullShapeBasis = TFMoMoConversions.toTensorNotTransposed(momo.shape.basisMatrix)
+      val fullExpressionBasis = TFMoMoConversions.toTensorNotTransposed(momo.expression.basisMatrix)
+
+      if (landmarkPointIds != null) {
+        val basisIndices = landmarkPointIds.flatMap(i => Seq(i * 3, i * 3 + 1, i * 3 + 2))
+        (fullShapeBasis.gather(basisIndices, 1), fullExpressionBasis.gather(basisIndices, 1))
+      } else {
+        (fullShapeBasis, fullExpressionBasis)
+      }
+    }
+
+    val shapeStd = TFMoMoConversions.toTensor(momo.shape.variance.map(math.sqrt))
+    val expressionStd = TFMoMoConversions.toTensor(momo.expression.variance.map(math.sqrt))
+
+    val (combinedBasis, combinedStd) = using(Session())(session => {
+      val bases = Seq(shapeBasis.toOutput, expressionBasis.toOutput)
+      val standardDevs = Seq(shapeStd.toOutput, expressionStd.toOutput)
+
+      val results = session.run(fetches = Seq(tf.concatenate(bases, axis = 0), tf.concatenate(standardDevs, axis = 1)))
+      (results.head, results.last)
+    })
+
+    val meanPoints = TFConversions.pointsToTensorNotTransposed(landmarkPointIds.collect(momo.mean.shape.position.pointData))
 
     TFLandmarksRenderer(combinedBasis, combinedStd, meanPoints)
   }

@@ -93,9 +93,9 @@ object Example {
 
     val paramTensorStacked = using(Session())(_.run(fetches = tf.concatenate(Seq(paramTensorProto.toOutput, (paramTensorProto + 1).toOutput), axis = 0)))
 
-    println(paramTensorStacked.shape)
+//    println(paramTensorStacked.shape)
 
-    println(paramTensor.shape)
+//    println(paramTensor.shape)
 
 //    val results = using(Session())(session => {
 //      session.run(targets = tf.globalVariablesInitializer())
@@ -108,18 +108,35 @@ object Example {
 
     val landmarkPointId = model.landmarkPointId(landmarkId).get
 
-//    val tfLandmarksRenderer = time("Creating landmarksRenderer", {
-//      TFLandmarksRenderer(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
-//    })
+    val tfLandmarksRenderer = time("Creating landmarksRenderer", {
+      TFLandmarksRenderer(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
+    })
 
-//    val tfLandmarksRendererMesh = tfLandmarksRenderer.getInstance(paramTensor)
+    val tfBatchLandmarksRenderer = time("Creating batchLandmarksRenderer", {
+      TFLandmarksRenderer.notTransposed(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
+    })
+
+    val tfLandmarksRendererMesh = tfLandmarksRenderer.getInstance(paramTensor)
+    val tfBatchLandmarksRendererMesh = tfBatchLandmarksRenderer.batchGetInstance(paramTensorStacked)
 //    println("LandmarksRenderer Mesh:")
-//    println(tfLandmarksRendererMesh.summarize())
+//    println(tfBatchLandmarksRendererMesh.summarize())
 
-    println(s"Mesh pt0:                    ${mesh.shape.pointSet.point(PointId(0))}")
+    val landmarksRenderer = MoMoRenderer(model, RGBA.BlackTransparent)
+
+    val landmark = landmarksRenderer.renderLandmark(landmarkId, param).get
+
+    val tfLandmarks = tfLandmarksRenderer.calculateLandmarks(paramTensor, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
+
+    val tfBatchLandmarks = tfBatchLandmarksRenderer.batchCalculateLandmarks(paramTensorStacked, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
+    //    println("Batch landmarks:")
+    //    println(tfBatchLandmarks.summarize())
+
+    println(s"Mesh pt0:                         ${mesh.shape.pointSet.point(PointId(0))}")
 //    println(s"TFMesh pt0:                  ${tfMesh.pts(0, 0).scalar}, ${tfMesh.pts(1, 0).scalar}, ${tfMesh.pts(2, 0).scalar}")
 //    println(s"variableModel pt0:           ${results(0, 0).scalar}, ${results(1, 0).scalar}, ${results(2, 0).scalar}")
-//    println(s"tfLandmarksRendererMesh pt0: ${tfLandmarksRendererMesh(0, 0).scalar}, ${tfLandmarksRendererMesh(1, 0).scalar}, ${tfLandmarksRendererMesh(2, 0).scalar}")
+    println(s"tfLandmarksRendererMesh pt0:      ${tfLandmarksRendererMesh(0, 0).scalar}, ${tfLandmarksRendererMesh(1, 0).scalar}, ${tfLandmarksRendererMesh(2, 0).scalar}")
+    println(s"tfBatchLandmarksRendererMesh pt0: ${tfBatchLandmarksRendererMesh(0, 0, 0).scalar}, ${tfBatchLandmarksRendererMesh(0, 0, 1).scalar}, ${tfBatchLandmarksRendererMesh(0, 0, 2).scalar}")
+    println()
 
 //    val landmarkResults = {
 //      val landmarkPoint = results(::, landmarkPointId.id).expandDims(1)
@@ -134,22 +151,18 @@ object Example {
 //      using(Session())(_.run(fetches = Seq(screenCoordinates, tfScreenCoordinates)))
 //    }
 
-    println(s"Mesh $landmarkId:                    ${mesh.shape.pointSet.point(landmarkPointId)}")
+    println(s"Mesh $landmarkId:                         ${mesh.shape.pointSet.point(landmarkPointId)}")
 //    println(s"variableModel $landmarkId:           ${results(0, landmarkPointId.id).scalar}, ${results(1, landmarkPointId.id).scalar}, ${results(2, landmarkPointId.id).scalar}")
-//    println(s"tfLandmarksRendererMesh $landmarkId: ${tfLandmarksRendererMesh(0, 1).scalar}, ${tfLandmarksRendererMesh(1, 1).scalar}, ${tfLandmarksRendererMesh(2, 1).scalar}")
+    println(s"tfLandmarksRendererMesh $landmarkId:      ${tfLandmarksRendererMesh(0, 1).scalar}, ${tfLandmarksRendererMesh(1, 1).scalar}, ${tfLandmarksRendererMesh(2, 1).scalar}")
+    println(s"tfBatchLandmarksRendererMesh $landmarkId: ${tfBatchLandmarksRendererMesh(0, 1, 0).scalar}, ${tfBatchLandmarksRendererMesh(0, 1, 1).scalar}, ${tfBatchLandmarksRendererMesh(0, 1, 2).scalar}")
+    println()
 
-    val landmarksRenderer = MoMoRenderer(model, RGBA.BlackTransparent)
-
-    val landmark = landmarksRenderer.renderLandmark(landmarkId, param).get
-
-//    val tfLandmarks = tfLandmarksRenderer.calculateLandmarks(paramTensor, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
-
-    println(s"Normal renderer landmark:     ${landmark.point}")
-
+    println(s"Normal renderer landmark:          ${landmark.point}")
 //    println(s"TF Landmark:                  ${landmarkResults.head(0, 0).scalar}, ${landmarkResults.head(1, 0).scalar}, ${landmarkResults.head(2, 0).scalar}")
     //    println(s"TF Transformed Landmark: ${landmarkResults(1)(0, 0).scalar}, ${landmarkResults(1)(1, 0).scalar}, ${landmarkResults(1)(2, 0).scalar}")
-
-//    println(s"TFLandmarksRenderer Landmark: ${tfLandmarks(0, 1).scalar}, ${tfLandmarks(1, 1).scalar}, ${tfLandmarks(2, 1).scalar}")
+    println(s"TFLandmarksRenderer Landmark:      ${tfLandmarks(0, 1).scalar}, ${tfLandmarks(1, 1).scalar}, ${tfLandmarks(2, 1).scalar}")
+    println(s"TFBatchLandmarksRenderer Landmark: ${tfBatchLandmarks(0, 1, 0).scalar}, ${tfBatchLandmarks(0, 1, 1).scalar}, ${tfBatchLandmarks(0, 1, 2).scalar}")
+    println()
 
     val neutralModel = model.neutralModel
 
@@ -168,9 +181,10 @@ object Example {
     val basicLandmarks = basicLandmarksRenderer.calculateLandmarks(basicParams, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
 
     val basicBatchInstance = basicBatchLandmarksRenderer.batchGetInstance(basicBatchParams)
+    val basicBatchLandmarks  = basicBatchLandmarksRenderer.batchCalculateLandmarks(basicBatchParams, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
 
-    println("Basic batch instance:")
-    println(basicBatchInstance.summarize())
+//    println("Basic batch instance:")
+//    println(basicBatchInstance.summarize())
 
     val neutralMesh = neutralModel.instance(param.momo.coefficients)
 
@@ -189,8 +203,9 @@ object Example {
     println(s"tfBatchLandmarksRendererMesh $landmarkId: ${basicBatchInstance(0, 1, 0).scalar}, ${basicBatchInstance(0, 1, 1).scalar}, ${basicBatchInstance(0, 1, 2).scalar}")
     println()
 
-    println(s"Normal renderer landmark:     ${neutralLandmark.point}")
-    println(s"TFLandmarksRenderer Landmark: ${basicLandmarks(0, 1).scalar}, ${basicLandmarks(1, 1).scalar}, ${basicLandmarks(2, 1).scalar}")
+    println(s"Normal renderer landmark:          ${neutralLandmark.point}")
+    println(s"TFLandmarksRenderer Landmark:      ${basicLandmarks(0, 1).scalar}, ${basicLandmarks(1, 1).scalar}, ${basicLandmarks(2, 1).scalar}")
+    println(s"TFBatchLandmarksRenderer Landmark: ${basicBatchLandmarks(0, 1, 0).scalar}, ${basicBatchLandmarks(0, 1, 1).scalar}, ${basicBatchLandmarks(0, 1, 2).scalar}")
 
     System.exit(0)
     /*
