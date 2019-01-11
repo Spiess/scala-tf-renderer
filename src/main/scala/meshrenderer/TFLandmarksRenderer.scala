@@ -114,9 +114,9 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     val translation = pose.translation.transpose().expandDims(0).tile(Tensor(2, 1, 1))
     val sensorSize = Output(camera.sensorSizeX, camera.sensorSizeY)
     val principalPoint = Output(camera.principalPointX, camera.principalPointY).expandDims(0).tile(Tensor(2, 1))
-    val roll = pose.roll//.expandDims(0).tile(Tensor(2, 1))
-    val pitch = pose.pitch//.expandDims(0).tile(Tensor(2, 1))
-    val yaw = pose.yaw//.expandDims(0).tile(Tensor(2, 1))
+    val roll = Output(pose.roll, -0.1f)
+    val pitch = Output(pose.pitch, 0.4f)
+    val yaw = Output(pose.yaw, 0.7f)
 
     val normalizedDeviceCoordinates = Transformations.pointsToNDCBatch(points, roll, pitch, yaw,
       translation, camera.near, camera.far, sensorSize, camera.focalLength, principalPoint)

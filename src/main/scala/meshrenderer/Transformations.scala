@@ -56,46 +56,43 @@ object Transformations {
   }
 
   def batchPoseRotationTransform(points: Output[Float], pitch: Output[Float], yaw: Output[Float], roll: Output[Float]): Output[Float] = {
+    val ones = Output.ones(Float, pitch.shape)
+    val zeros = Output.zeros(Float, pitch.shape)
     val X = {
       val pitchc = tf.cos(pitch)
       val pitchs = tf.sin(pitch)
       Output(
-        Output(1f, 0f, 0f),
-        Output(0f, pitchc, pitchs),
-        Output(0f, -pitchs, pitchc)
-      )
+        Output(ones, zeros, zeros),
+        Output(zeros, pitchc, pitchs),
+        Output(zeros, -pitchs, pitchc)
+      ).transpose(Tensor(2, 0, 1))
     }
 
     val Y = {
       val yawc = tf.cos(yaw)
       val yaws = tf.sin(yaw)
       Output(
-        Output(yawc, 0f, -yaws),
-        Output(0f, 1f, 0f),
-        Output(yaws, 0f, yawc)
-      )
+        Output(yawc, zeros, -yaws),
+        Output(zeros, ones, zeros),
+        Output(yaws, zeros, yawc)
+      ).transpose(Tensor(2, 0, 1))
     }
 
     val Z = {
       val rollc = tf.cos(roll)
       val rolls = tf.sin(roll)
       Output(
-        Output(rollc, rolls, 0f),
-        Output(-rolls, rollc, 0f),
-        Output(0f, 0f, 1f)
-      )
+        Output(rollc, rolls, zeros),
+        Output(-rolls, rollc, zeros),
+        Output(zeros, zeros, ones)
+      ).transpose(Tensor(2, 0, 1))
     }
 
-    // TODO
-    val nz = Z.expandDims(0).tile(Tensor(2, 1, 1))
-    val ny = Y.expandDims(0).tile(Tensor(2, 1, 1))
-    val nx = X.expandDims(0).tile(Tensor(2, 1, 1))
+    val multX = tf.matmul(points, X)
 
-    val multX = tf.matmul(points, nx)
+    val multY = tf.matmul(multX, Y)
 
-    val multY = tf.matmul(multX, ny)
-
-    val multZ = tf.matmul(multY, nz)
+    val multZ = tf.matmul(multY, Z)
 
     multZ
   }
@@ -180,9 +177,9 @@ object Transformations {
     * Transforms a batch of point lists to a batch of normalized device coordinates.
     *
     * @param points         mesh points of shape (batchSize, numPoints, pointDimensions [x, y, z])
-    * @param roll           roll values of shape (batchSize, 1)
-    * @param pitch          pitch values of shape (batchSize, 1)
-    * @param yaw            yaw values of shape (batchSize, 1)
+    * @param roll           roll values of shape (batchSize)
+    * @param pitch          pitch values of shape (batchSize)
+    * @param yaw            yaw values of shape (batchSize)
     * @param translation    translation of shape (batchSize, 1, pointDimensions [x, y, z])
     * @param cameraNear     values of shape (1)
     * @param cameraFar      values of shape (1)
