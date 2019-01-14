@@ -21,6 +21,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @param parameters model parameters
     * @return [[Tensor]] of mesh points
     */
+  @deprecated
   def getInstance(parameters: Tensor[Float]): Tensor[Float] = {
     val mesh = getInstance(parameters.toOutput)
 
@@ -34,6 +35,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @param parameters model parameters
     * @return [[Output]] of mesh points
     */
+  @deprecated
   def getInstance(parameters: Output[Float]): Output[Float] = {
     val offsets = tf.matmul(basisMatrix, parameters * parameterStd).reshape(Shape(-1, 3)).transpose()
     meanMesh + offsets
@@ -78,6 +80,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @param imageHeight the height of the rendered image
     * @return [[Tensor]] of projected landmark positions
     */
+  @deprecated
   def calculateLandmarks(parameters: Tensor[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Tensor[Float] = {
     val landmarks = calculateLandmarks(parameters.toOutput, pose, camera, imageWidth, imageHeight)
 
@@ -94,6 +97,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @param imageHeight the height of the rendered image
     * @return [[Output]] of projected landmark positions
     */
+  @deprecated
   def calculateLandmarks(parameters: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
     val points = getInstance(parameters)
     projectPointsOnImage(points, pose, camera, imageWidth, imageHeight)
@@ -111,7 +115,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @param translation    translation of shape (batchSize, 1, pointDimensions [x, y, z])
     * @param cameraNear     values of shape (1)
     * @param cameraFar      values of shape (1)
-    * @param sensorSize     values of shape (2 [sensorWidth, sensorHeight])
+    * @param sensorSize     values of shape (batchSize, 2 [sensorWidth, sensorHeight])
     * @param focalLength    values of shape (1)
     * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
     * @return [[Tensor]] of projected landmark positions with shape (batchSize, numPoints, pointDimensions [x, y, z])
@@ -145,6 +149,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @param imageHeight the height of the rendered image
     * @return [[Output]] of projected landmark positions
     */
+  @deprecated
   def projectPointsOnImage(points: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
     val normalizedDeviceCoordinates = Transformations.objectToNDC(points, pose, camera)
     Transformations.screenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)

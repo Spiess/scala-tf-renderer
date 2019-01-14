@@ -9,6 +9,7 @@ import scalismo.utils.Random
 
 object Transformations {
 
+  @deprecated
   def poseTransform(pt: Output[Float], pitch: Output[Float], yaw: Output[Float], roll: Output[Float], translation: Output[Float]): Output[Float] = {
     poseRotationTransform(pt, pitch, yaw, roll) + translation
   }
@@ -17,6 +18,7 @@ object Transformations {
     batchPoseRotationTransform(points, pitch, yaw, roll) + translation
   }
 
+  @deprecated
   def poseRotationTransform(pt: Output[Float], pitch: Output[Float], yaw: Output[Float], roll: Output[Float]): Output[Float] = {
     val X = {
       val pitchc = tf.cos(pitch)
@@ -103,6 +105,7 @@ object Transformations {
     multZ
   }
 
+  @deprecated
   def projectiveTransformation(pt: Output[Float],
                                near: Output[Float], far: Output[Float],
                                sensorSizeX: Output[Float], sensorSizeY: Output[Float],
@@ -137,12 +140,16 @@ object Transformations {
     val ppx = principalPoint(::, 0).expandDims(1)
     val ppy = principalPoint(::, 1).expandDims(1)
 
-    val newpx = ppx - (px * 2f * focalLength) / (pz * sensorSize(0))
-    val newpy = ppy - (py * 2f * focalLength) / (pz * sensorSize(1))
+    val ssx = sensorSize(::, 0).expandDims(1)
+    val ssy = sensorSize(::, 1).expandDims(1)
+
+    val newpx = ppx - (px * 2f * focalLength) / (pz * ssx)
+    val newpy = ppy - (py * 2f * focalLength) / (pz * ssy)
     val newpz = (far * near * 2f / pz + near + far) / (far - near)
     tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose() //.reshape(Shape(3,2))
   }
 
+  @deprecated
   def screenTransformation(pt: Output[Float], width: Output[Float], height: Output[Float]): Output[Float] = {
     val n = 0f
     val f = 1f
@@ -192,7 +199,7 @@ object Transformations {
     * @param translation    translation of shape (batchSize, 1, pointDimensions [x, y, z])
     * @param cameraNear     values of shape (1)
     * @param cameraFar      values of shape (1)
-    * @param sensorSize     values of shape (2 [sensorWidth, sensorHeight])
+    * @param sensorSize     values of shape (batchSize, 2 [sensorWidth, sensorHeight])
     * @param focalLength    values of shape (1)
     * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
     * @return normalized device coordinates of shape (batchSize, numPoints, pointDimensions [x, y, z])

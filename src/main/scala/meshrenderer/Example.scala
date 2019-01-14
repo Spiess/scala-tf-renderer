@@ -85,7 +85,7 @@ object Example {
     // Parameter initialization
     val verificationParam = {
       val rps = RenderParameterIO.read(new File("../../Documents/datasets/data_300K_fewParameters50_crop_noSensor_lms/0_0.rps")).get
-      rps.copy(momo = rps.momo.copy(expression = rps.momo.expression.take(5)), camera = param.camera.copy(principalPoint = rps.camera.principalPoint), imageSize = param.imageSize)
+      rps.copy(momo = rps.momo.copy(expression = rps.momo.expression.take(5)), camera = param.camera.copy(principalPoint = rps.camera.principalPoint, sensorSize = rps.camera.sensorSize), imageSize = param.imageSize)
     }
 
     def coefficientsToTensor(coefficients: MoMoCoefficients): Tensor[Float] = {
@@ -106,7 +106,8 @@ object Example {
 
     // Prepare render parameters
     val translation = Tensor(TFConversions.vec2Tensor(param.pose.translation).transpose(), TFConversions.vec2Tensor(verificationParam.pose.translation).transpose())
-    val sensorSize = Output(param.camera.sensorSize.x.toFloat, param.camera.sensorSize.y.toFloat)
+    
+    val cameraSensorSize = Output(Output(param.camera.sensorSize.x.toFloat, param.camera.sensorSize.y.toFloat), Output(verificationParam.camera.sensorSize.x.toFloat, verificationParam.camera.sensorSize.y.toFloat))
 
     val cameraPrincipalPoint = Output(Output(param.camera.principalPoint.x.toFloat, param.camera.principalPoint.y.toFloat),
       Output(verificationParam.camera.principalPoint.x.toFloat, verificationParam.camera.principalPoint.y.toFloat))
@@ -155,7 +156,7 @@ object Example {
     val tfVerificationLandmarks = tfLandmarksRenderer.calculateLandmarks(verificationParamTensor.transpose(), TFPose(TFPose(verificationParam.pose)), TFCamera(TFCamera(verificationParam.camera)), image.width, image.height)
 
     val tfBatchLandmarks = tfBatchLandmarksRenderer.batchCalculateLandmarks(paramTensorStacked, roll, pitch, yaw,
-      translation, cameraNear, cameraFar, sensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)
+      translation, cameraNear, cameraFar, cameraSensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)
     //    println("Batch landmarks:")
     //    println(tfBatchLandmarks.summarize())
 
@@ -225,7 +226,7 @@ object Example {
 
     val basicBatchInstance = basicBatchLandmarksRenderer.batchGetInstance(basicBatchParams)
     val basicBatchLandmarks  = basicBatchLandmarksRenderer.batchCalculateLandmarks(basicBatchParams, roll, pitch, yaw,
-      translation, cameraNear, cameraFar, sensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)
+      translation, cameraNear, cameraFar, cameraSensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)
 
 //    println("Basic batch instance:")
 //    println(basicBatchInstance.summarize())
