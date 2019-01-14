@@ -160,7 +160,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
                                 sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
                                 imageWidth: Int, imageHeight: Int): Output[Float] = {
 
-    val normalizedDeviceCoordinates = Transformations.pointsToNDCBatch(points, roll, pitch, yaw, translation,
+    val normalizedDeviceCoordinates = Transformations.batchPointsToNDC(points, roll, pitch, yaw, translation,
       cameraNear, cameraFar, sensorSize, focalLength, principalPoint)
 
     Transformations.batchScreenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)
@@ -173,11 +173,15 @@ object TFLandmarksRenderer {
     * The landmarks renderer can be restricted to a specific set of pointIds for efficiency. In that case the results
     * [[TFLandmarksRenderer.getInstance]] and [[TFLandmarksRenderer.calculateLandmarks]] will be
     * only the specified points in the specified order.
+    * <br>
+    * Creates a landmarks renderer with transposed standard deviation, basis and mean points for use with deprecated
+    * functions still using the points shape (dimensions, numPoints).
     *
     * @param momo             model to use
     * @param landmarkPointIds point ids of the desired landmarks or null for all points
     */
-  def apply(momo: MoMoBasic, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
+  @deprecated
+  def transposed(momo: MoMoBasic, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val shapeBasis = {
       val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
 
@@ -196,7 +200,16 @@ object TFLandmarksRenderer {
     TFLandmarksRenderer(shapeBasis, shapeStd, meanPoints)
   }
 
-  def notTransposed(momo: MoMoBasic, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
+  /**
+    * Creates a TFLandmarksRenderer for basic morphable models.
+    * The landmarks renderer can be restricted to a specific set of pointIds for efficiency. In that case the results
+    * [[TFLandmarksRenderer.getInstance]] and [[TFLandmarksRenderer.calculateLandmarks]] will be
+    * only the specified points in the specified order.
+    *
+    * @param momo             model to use
+    * @param landmarkPointIds point ids of the desired landmarks or null for all points
+    */
+  def apply(momo: MoMoBasic, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val shapeBasis = {
       val fullShapeBasis = TFMoMoConversions.toTensorNotTransposed(momo.shape.basisMatrix)
 
@@ -220,11 +233,15 @@ object TFLandmarksRenderer {
     * The landmarks renderer can be restricted to a specific set of pointIds for efficiency. In that case the results
     * [[TFLandmarksRenderer.getInstance]] and [[TFLandmarksRenderer.calculateLandmarks]] will be
     * only the specified points in the specified order.
+    * <br>
+    * Creates a landmarks renderer with transposed standard deviation, basis and mean points for use with deprecated
+    * functions still using the points shape (dimensions, numPoints).
     *
     * @param momo             model to use
     * @param landmarkPointIds point ids of the desired landmarks or null for all points
     */
-  def apply(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
+  @deprecated
+  def transposed(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val (shapeBasis, expressionBasis) = {
       val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
       val fullExpressionBasis = TFMoMoConversions.toTensor(momo.expression.basisMatrix)
@@ -253,7 +270,16 @@ object TFLandmarksRenderer {
     TFLandmarksRenderer(combinedBasis, combinedStd, meanPoints)
   }
 
-  def notTransposed(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
+  /**
+    * Creates a TFLandmarksRenderer for expression models.
+    * The landmarks renderer can be restricted to a specific set of pointIds for efficiency. In that case the results
+    * [[TFLandmarksRenderer.getInstance]] and [[TFLandmarksRenderer.calculateLandmarks]] will be
+    * only the specified points in the specified order.
+    *
+    * @param momo             model to use
+    * @param landmarkPointIds point ids of the desired landmarks or null for all points
+    */
+  def apply(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val (shapeBasis, expressionBasis) = {
       val fullShapeBasis = TFMoMoConversions.toTensorNotTransposed(momo.shape.basisMatrix)
       val fullExpressionBasis = TFMoMoConversions.toTensorNotTransposed(momo.expression.basisMatrix)

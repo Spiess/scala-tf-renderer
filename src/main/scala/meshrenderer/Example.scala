@@ -135,11 +135,11 @@ object Example {
     val landmarkPointId = model.landmarkPointId(landmarkId).get
 
     val tfLandmarksRenderer = time("Creating landmarksRenderer", {
-      TFLandmarksRenderer(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
+      TFLandmarksRenderer.transposed(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
     })
 
     val tfBatchLandmarksRenderer = time("Creating batchLandmarksRenderer", {
-      TFLandmarksRenderer.notTransposed(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
+      TFLandmarksRenderer(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
     })
 
     val tfLandmarksRendererMesh = tfLandmarksRenderer.getInstance(paramTensor)
@@ -211,11 +211,11 @@ object Example {
     val neutralModel = model.neutralModel
 
     val basicLandmarksRenderer = time("Creating basicLandmarksRenderer", {
-      TFLandmarksRenderer(neutralModel.truncate(80, 40), IndexedSeq(0, landmarkPointId.id))
+      TFLandmarksRenderer.transposed(neutralModel.truncate(80, 40), IndexedSeq(0, landmarkPointId.id))
     })
 
     val basicBatchLandmarksRenderer = time("Creating basicBatchLandmarksRenderer", {
-      TFLandmarksRenderer.notTransposed(neutralModel.truncate(80, 40), IndexedSeq(0, landmarkPointId.id))
+      TFLandmarksRenderer(neutralModel.truncate(80, 40), IndexedSeq(0, landmarkPointId.id))
     })
 
     val basicParams = paramTensor(0 :: 80)

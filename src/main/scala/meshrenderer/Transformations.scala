@@ -146,7 +146,7 @@ object Transformations {
     val newpx = ppx - (px * 2f * focalLength) / (pz * ssx)
     val newpy = ppy - (py * 2f * focalLength) / (pz * ssy)
     val newpz = (far * near * 2f / pz + near + far) / (far - near)
-    tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose() //.reshape(Shape(3,2))
+    tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose()
   }
 
   @deprecated
@@ -204,7 +204,7 @@ object Transformations {
     * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
     * @return normalized device coordinates of shape (batchSize, numPoints, pointDimensions [x, y, z])
     */
-  def pointsToNDCBatch(
+  def batchPointsToNDC(
                         points: Output[Float],
                         roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
                         translation: Output[Float],
