@@ -21,7 +21,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @param parameters model parameters
     * @return [[Tensor]] of mesh points
     */
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def getInstance(parameters: Tensor[Float]): Tensor[Float] = {
     val mesh = getInstance(parameters.toOutput)
 
@@ -35,7 +35,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @param parameters model parameters
     * @return [[Output]] of mesh points
     */
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def getInstance(parameters: Output[Float]): Output[Float] = {
     val offsets = tf.matmul(basisMatrix, parameters * parameterStd).reshape(Shape(-1, 3)).transpose()
     meanMesh + offsets
@@ -80,7 +80,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @param imageHeight the height of the rendered image
     * @return [[Tensor]] of projected landmark positions
     */
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def calculateLandmarks(parameters: Tensor[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Tensor[Float] = {
     val landmarks = calculateLandmarks(parameters.toOutput, pose, camera, imageWidth, imageHeight)
 
@@ -97,7 +97,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @param imageHeight the height of the rendered image
     * @return [[Output]] of projected landmark positions
     */
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def calculateLandmarks(parameters: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
     val points = getInstance(parameters)
     projectPointsOnImage(points, pose, camera, imageWidth, imageHeight)
@@ -149,7 +149,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @param imageHeight the height of the rendered image
     * @return [[Output]] of projected landmark positions
     */
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def projectPointsOnImage(points: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
     val normalizedDeviceCoordinates = Transformations.objectToNDC(points, pose, camera)
     Transformations.screenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)
@@ -180,7 +180,7 @@ object TFLandmarksRenderer {
     * @param momo             model to use
     * @param landmarkPointIds point ids of the desired landmarks or null for all points
     */
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def transposed(momo: MoMoBasic, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val shapeBasis = {
       val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
@@ -240,7 +240,7 @@ object TFLandmarksRenderer {
     * @param momo             model to use
     * @param landmarkPointIds point ids of the desired landmarks or null for all points
     */
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def transposed(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val (shapeBasis, expressionBasis) = {
       val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)

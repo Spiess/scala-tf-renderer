@@ -9,7 +9,7 @@ import scalismo.utils.Random
 
 object Transformations {
 
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def poseTransform(pt: Output[Float], pitch: Output[Float], yaw: Output[Float], roll: Output[Float], translation: Output[Float]): Output[Float] = {
     poseRotationTransform(pt, pitch, yaw, roll) + translation
   }
@@ -18,7 +18,7 @@ object Transformations {
     batchPoseRotationTransform(points, pitch, yaw, roll) + translation
   }
 
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def poseRotationTransform(pt: Output[Float], pitch: Output[Float], yaw: Output[Float], roll: Output[Float]): Output[Float] = {
     val X = {
       val pitchc = tf.cos(pitch)
@@ -105,7 +105,7 @@ object Transformations {
     multZ
   }
 
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def projectiveTransformation(pt: Output[Float],
                                near: Output[Float], far: Output[Float],
                                sensorSizeX: Output[Float], sensorSizeY: Output[Float],
@@ -149,7 +149,7 @@ object Transformations {
     tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose()
   }
 
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def screenTransformation(pt: Output[Float], width: Output[Float], height: Output[Float]): Output[Float] = {
     val n = 0f
     val f = 1f
@@ -176,7 +176,7 @@ object Transformations {
 
   // TODO: Change the way points are stored: change (dimension, point) to (point dimension) because this is incredibly unintuitive and often inconvenient
 
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def objectToNDC(pts: Output[Float], pose: TFPose, camera: TFCamera): Output[Float] = {
     val poseTransformed = poseTransform(pts, pose.pitch, pose.yaw, pose.roll, pose.translation)
 

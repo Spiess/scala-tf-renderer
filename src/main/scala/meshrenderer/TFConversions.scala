@@ -33,7 +33,7 @@ object TFConversions {
     Tensor(Seq(pt.x.toFloat, pt.y.toFloat, pt.z.toFloat)).reshape(Shape(3, 1))
   }
 
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def pointsToTensor[A](points: IndexedSeq[A])(implicit vectorizer: Vectorizer[A]): Tensor[Float] = {
     pointsToTensorNotTransposed(points).transpose()
   }

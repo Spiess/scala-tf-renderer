@@ -1,5 +1,6 @@
 organization  := "ch.unibas.cs.gravis"
 name := """scala-tf-renderer"""
+version := "0.1-SNAPSHOT"
 
 scalaVersion  := "2.12.2"
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")

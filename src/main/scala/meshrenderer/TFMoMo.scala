@@ -83,7 +83,7 @@ object TFMoMoConversions {
     val variance = momo.shape.variance
   }
 
-  @deprecated
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def toTensor(mat: DenseMatrix[Double]): Tensor[Float] = {
     toTensorNotTransposed(mat).transpose()
   }
