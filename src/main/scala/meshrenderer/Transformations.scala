@@ -59,8 +59,8 @@ object Transformations {
 
   def batchPoseRotationTransform(points: Output[Float], pitch: Output[Float], yaw: Output[Float], roll: Output[Float]): Output[Float] = {
     // Define batch-length ones and zeros tensors for the rotation matrices
-    val ones = Output.ones(Float, pitch.shape)
-    val zeros = Output.zeros(Float, pitch.shape)
+    val ones = Output.onesLike(pitch)
+    val zeros = Output.zerosLike(pitch)
 
     /*
     Each rotation matrix is constructed as (x, y, batch) but should be (batch, x, y). Because of this, each matrix needs
