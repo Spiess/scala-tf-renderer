@@ -149,6 +149,25 @@ object Transformations {
     tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose()
   }
 
+  def batchProjectiveTransformation2D(points: Output[Float],
+                                    sensorSize: Output[Float],
+                                    focalLength: Output[Float],
+                                    principalPoint: Output[Float]): Output[Float] = {
+    val px = points(::, ::, 0)
+    val py = points(::, ::, 1)
+    val pz = points(::, ::, 2)
+
+    val ppx = principalPoint(::, 0).expandDims(1)
+    val ppy = principalPoint(::, 1).expandDims(1)
+
+    val ssx = sensorSize(::, 0).expandDims(1)
+    val ssy = sensorSize(::, 1).expandDims(1)
+
+    val newpx = ppx - (px * 2f * focalLength) / (pz * ssx)
+    val newpy = ppy - (py * 2f * focalLength) / (pz * ssy)
+    tf.stack(Seq(newpx, newpy), axis = 0).transpose()
+  }
+
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def screenTransformation(pt: Output[Float], width: Output[Float], height: Output[Float]): Output[Float] = {
     val n = 0f
@@ -172,6 +191,14 @@ object Transformations {
     val newpy = (-py + 1f) * height / 2f
     val newpz = pz * (f - n) / 2f + (f + n) / 2f
     tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose()
+  }
+
+  def batchScreenTransformation2D(pt: Output[Float], width: Output[Float], height: Output[Float]): Output[Float] = {
+    val px = pt(::, ::, 0)
+    val py = pt(::, ::, 1)
+    val newpx = (px + 1f) * width / 2f
+    val newpy = (-py + 1f) * height / 2f
+    tf.stack(Seq(newpx, newpy), axis = 0).transpose()
   }
 
   // TODO: Change the way points are stored: change (dimension, point) to (point dimension) because this is incredibly unintuitive and often inconvenient
@@ -216,6 +243,19 @@ object Transformations {
     val poseTransformed = batchPoseTransform(points, pitch, yaw, roll, translation)
 
     batchProjectiveTransformation(poseTransformed, cameraNear, cameraFar, sensorSize, focalLength, principalPoint)
+  }
+
+  def batchPointsToNDC2D(
+                        points: Output[Float],
+                        roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
+                        translation: Output[Float],
+                        sensorSize: Output[Float],
+                        focalLength: Output[Float],
+                        principalPoint: Output[Float]
+                      ): Output[Float] = {
+    val poseTransformed = batchPoseTransform(points, pitch, yaw, roll, translation)
+
+    batchProjectiveTransformation2D(poseTransformed, sensorSize, focalLength, principalPoint)
   }
 
   /** normalized device coordinates of rasterizer are different than in the scalismo-faces renderer. */

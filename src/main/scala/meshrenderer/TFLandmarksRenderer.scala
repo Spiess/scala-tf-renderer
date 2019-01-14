@@ -139,6 +139,15 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     batchProjectPointsOnImage(points, roll, pitch, yaw, translation, cameraNear, cameraFar, sensorSize, focalLength, principalPoint, imageWidth, imageHeight)
   }
 
+  def batchCalculateLandmarks2D(parameters: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
+                              translation: Output[Float],
+                              sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
+                              imageWidth: Int, imageHeight: Int): Output[Float] = {
+    val points = batchGetInstance(parameters)
+
+    batchProjectPointsOnImage2D(points, roll, pitch, yaw, translation, sensorSize, focalLength, principalPoint, imageWidth, imageHeight)
+  }
+
   /**
     * Projects the given points onto an image given the pose, camera and image parameters.
     *
@@ -164,6 +173,17 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
       cameraNear, cameraFar, sensorSize, focalLength, principalPoint)
 
     Transformations.batchScreenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)
+  }
+
+  def batchProjectPointsOnImage2D(points: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
+                                translation: Output[Float],
+                                sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
+                                imageWidth: Int, imageHeight: Int): Output[Float] = {
+
+    val normalizedDeviceCoordinates = Transformations.batchPointsToNDC2D(points, roll, pitch, yaw, translation,
+      sensorSize, focalLength, principalPoint)
+
+    Transformations.batchScreenTransformation2D(normalizedDeviceCoordinates, imageWidth, imageHeight)
   }
 }
 

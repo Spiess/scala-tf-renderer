@@ -159,6 +159,8 @@ object Example {
       translation, cameraNear, cameraFar, cameraSensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)
     //    println("Batch landmarks:")
     //    println(tfBatchLandmarks.summarize())
+    val tfBatchLandmarks2D = using(Session())(_.run(fetches = tfBatchLandmarksRenderer.batchCalculateLandmarks2D(paramTensorStacked, roll, pitch, yaw,
+      translation, cameraSensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)))
 
     println(s"Mesh pt0:                         ${mesh.shape.pointSet.point(PointId(0))}")
 //    println(s"TFMesh pt0:                  ${tfMesh.pts(0, 0).scalar}, ${tfMesh.pts(1, 0).scalar}, ${tfMesh.pts(2, 0).scalar}")
@@ -196,16 +198,18 @@ object Example {
     println(s"tfBatchLandmarksRendererMesh verification $landmarkId: ${tfBatchLandmarksRendererMesh(1, 1, 0).scalar}, ${tfBatchLandmarksRendererMesh(1, 1, 1).scalar}, ${tfBatchLandmarksRendererMesh(1, 1, 2).scalar}")
     println()
 
-    println(s"Normal renderer landmark:          ${landmark.point}")
+    println(s"Normal renderer landmark:            ${landmark.point}")
 //    println(s"TF Landmark:                  ${landmarkResults.head(0, 0).scalar}, ${landmarkResults.head(1, 0).scalar}, ${landmarkResults.head(2, 0).scalar}")
     //    println(s"TF Transformed Landmark: ${landmarkResults(1)(0, 0).scalar}, ${landmarkResults(1)(1, 0).scalar}, ${landmarkResults(1)(2, 0).scalar}")
-    println(s"TFLandmarksRenderer Landmark:      ${tfLandmarks(0, 1).scalar}, ${tfLandmarks(1, 1).scalar}, ${tfLandmarks(2, 1).scalar}")
-    println(s"TFBatchLandmarksRenderer Landmark: ${tfBatchLandmarks(0, 1, 0).scalar}, ${tfBatchLandmarks(0, 1, 1).scalar}, ${tfBatchLandmarks(0, 1, 2).scalar}")
+    println(s"TFLandmarksRenderer Landmark:        ${tfLandmarks(0, 1).scalar}, ${tfLandmarks(1, 1).scalar}, ${tfLandmarks(2, 1).scalar}")
+    println(s"TFBatchLandmarksRenderer Landmark:   ${tfBatchLandmarks(0, 1, 0).scalar}, ${tfBatchLandmarks(0, 1, 1).scalar}, ${tfBatchLandmarks(0, 1, 2).scalar}")
+    println(s"TFBatchLandmarksRenderer Landmark2D: ${tfBatchLandmarks2D(0, 1, 0).scalar}, ${tfBatchLandmarks2D(0, 1, 1).scalar}")
     println()
 
-    println(s"Normal renderer verification landmark:          ${verificationLandmark.point}")
-    println(s"TFLandmarksRenderer verification Landmark:      ${tfVerificationLandmarks(0, 1).scalar}, ${tfVerificationLandmarks(1, 1).scalar}, ${tfVerificationLandmarks(2, 1).scalar}")
-    println(s"TFBatchLandmarksRenderer verification Landmark: ${tfBatchLandmarks(1, 1, 0).scalar}, ${tfBatchLandmarks(1, 1, 1).scalar}, ${tfBatchLandmarks(1, 1, 2).scalar}")
+    println(s"Normal renderer verification landmark:            ${verificationLandmark.point}")
+    println(s"TFLandmarksRenderer verification Landmark:        ${tfVerificationLandmarks(0, 1).scalar}, ${tfVerificationLandmarks(1, 1).scalar}, ${tfVerificationLandmarks(2, 1).scalar}")
+    println(s"TFBatchLandmarksRenderer verification Landmark:   ${tfBatchLandmarks(1, 1, 0).scalar}, ${tfBatchLandmarks(1, 1, 1).scalar}, ${tfBatchLandmarks(1, 1, 2).scalar}")
+    println(s"TFBatchLandmarksRenderer verification Landmark2D: ${tfBatchLandmarks2D(1, 1, 0).scalar}, ${tfBatchLandmarks2D(1, 1, 1).scalar}")
     println()
 
     val neutralModel = model.neutralModel
