@@ -130,6 +130,24 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     using(Session())(_.run(fetches = landmarks))
   }
 
+  /**
+    * Calculates landmark positions in the rendered image for the given parameters. Version for batches of parameters.
+    * <br>
+    * The translation and sensorSize parameters can also be specified as constant for the entire batch by providing an
+    * [[Output]] of shape (1, 1, 3) or (1, 2) respectively.
+    *
+    * @param parameters     batch of model parameters with shape (batchSize, numParameters)
+    * @param roll           roll values of shape (batchSize)
+    * @param pitch          pitch values of shape (batchSize)
+    * @param yaw            yaw values of shape (batchSize)
+    * @param translation    translation of shape (batchSize, 1, pointDimensions [x, y, z])
+    * @param cameraNear     values of shape (1)
+    * @param cameraFar      values of shape (1)
+    * @param sensorSize     values of shape (batchSize, 2 [sensorWidth, sensorHeight])
+    * @param focalLength    values of shape (1)
+    * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
+    * @return [[Output]] of projected landmark positions with shape (batchSize, numPoints, pointDimensions [x, y, z])
+    */
   def batchCalculateLandmarks(parameters: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
                               translation: Output[Float], cameraNear: Output[Float], cameraFar: Output[Float],
                               sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
@@ -139,10 +157,28 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     batchProjectPointsOnImage(points, roll, pitch, yaw, translation, cameraNear, cameraFar, sensorSize, focalLength, principalPoint, imageWidth, imageHeight)
   }
 
+  /**
+    * Calculates 2D landmark positions in the rendered image for the given parameters. Version for batches of
+    * parameters. By only calculating the 2D landmark positions, this function requires fewer parameters and is more
+    * efficient than [[batchCalculateLandmarks]].
+    * <br>
+    * The translation and sensorSize parameters can also be specified as constant for the entire batch by providing an
+    * [[Output]] of shape (1, 1, 3) or (1, 2) respectively.
+    *
+    * @param parameters     batch of model parameters with shape (batchSize, numParameters)
+    * @param roll           roll values of shape (batchSize)
+    * @param pitch          pitch values of shape (batchSize)
+    * @param yaw            yaw values of shape (batchSize)
+    * @param translation    translation of shape (batchSize, 1, pointDimensions [x, y, z])
+    * @param sensorSize     values of shape (batchSize, 2 [sensorWidth, sensorHeight])
+    * @param focalLength    values of shape (1)
+    * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
+    * @return [[Output]] of projected landmark positions with shape (batchSize, numPoints, pointDimensions [x, y])
+    */
   def batchCalculateLandmarks2D(parameters: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
-                              translation: Output[Float],
-                              sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
-                              imageWidth: Int, imageHeight: Int): Output[Float] = {
+                                translation: Output[Float],
+                                sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
+                                imageWidth: Int, imageHeight: Int): Output[Float] = {
     val points = batchGetInstance(parameters)
 
     batchProjectPointsOnImage2D(points, roll, pitch, yaw, translation, sensorSize, focalLength, principalPoint, imageWidth, imageHeight)
@@ -164,6 +200,22 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     Transformations.screenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)
   }
 
+  /**
+    * Projects the given points onto an image given the pose, camera and image parameters. Version for batches of
+    * points.
+    *
+    * @param points         points to be projected onto the image of shape (batchSize, numPoints, pointDimensions)
+    * @param roll           roll values of shape (batchSize)
+    * @param pitch          pitch values of shape (batchSize)
+    * @param yaw            yaw values of shape (batchSize)
+    * @param translation    translation of shape (batchSize, 1, pointDimensions [x, y, z])
+    * @param cameraNear     values of shape (1)
+    * @param cameraFar      values of shape (1)
+    * @param sensorSize     values of shape (batchSize, 2 [sensorWidth, sensorHeight])
+    * @param focalLength    values of shape (1)
+    * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
+    * @return [[Output]] of projected landmark positions of shape (batchSize, numLandmarks, landmarkDimensions [x, y, z])
+    */
   def batchProjectPointsOnImage(points: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
                                 translation: Output[Float], cameraNear: Output[Float], cameraFar: Output[Float],
                                 sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
@@ -175,10 +227,25 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     Transformations.batchScreenTransformation(normalizedDeviceCoordinates, imageWidth, imageHeight)
   }
 
+  /**
+    * Projects the given points onto an image given the pose, camera and image parameters. Version for batches of
+    * points. By only calculating the 2D landmark positions, this function requires fewer parameters and is more
+    * efficient than [[batchProjectPointsOnImage]].
+    *
+    * @param points         points to be projected onto the image of shape (batchSize, numPoints, pointDimensions)
+    * @param roll           roll values of shape (batchSize)
+    * @param pitch          pitch values of shape (batchSize)
+    * @param yaw            yaw values of shape (batchSize)
+    * @param translation    translation of shape (batchSize, 1, pointDimensions [x, y, z])
+    * @param sensorSize     values of shape (batchSize, 2 [sensorWidth, sensorHeight])
+    * @param focalLength    values of shape (1)
+    * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
+    * @return [[Output]] of projected landmark positions of shape (batchSize, numLandmarks, landmarkDimensions [x, y])
+    */
   def batchProjectPointsOnImage2D(points: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
-                                translation: Output[Float],
-                                sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
-                                imageWidth: Int, imageHeight: Int): Output[Float] = {
+                                  translation: Output[Float],
+                                  sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
+                                  imageWidth: Int, imageHeight: Int): Output[Float] = {
 
     val normalizedDeviceCoordinates = Transformations.batchPointsToNDC2D(points, roll, pitch, yaw, translation,
       sensorSize, focalLength, principalPoint)

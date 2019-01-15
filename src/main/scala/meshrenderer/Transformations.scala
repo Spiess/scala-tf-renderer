@@ -245,6 +245,20 @@ object Transformations {
     batchProjectiveTransformation(poseTransformed, cameraNear, cameraFar, sensorSize, focalLength, principalPoint)
   }
 
+  /**
+    * Transforms a batch of point lists to a batch of 2D normalized device coordinates. By only calculating the 2D
+    * landmark positions, this function requires fewer parameters and is more efficient.
+    *
+    * @param points         mesh points of shape (batchSize, numPoints, pointDimensions [x, y, z])
+    * @param roll           roll values of shape (batchSize)
+    * @param pitch          pitch values of shape (batchSize)
+    * @param yaw            yaw values of shape (batchSize)
+    * @param translation    translation of shape (batchSize, 1, pointDimensions [x, y, z])
+    * @param sensorSize     values of shape (batchSize, 2 [sensorWidth, sensorHeight])
+    * @param focalLength    values of shape (1)
+    * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
+    * @return normalized device coordinates of shape (batchSize, numPoints, pointDimensions [x, y, z])
+    */
   def batchPointsToNDC2D(
                         points: Output[Float],
                         roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
@@ -291,139 +305,4 @@ object Transformations {
     val newBCC = tf.stack(Seq(1 - newB - newC, newB, newC))
     newBCC * (1f - dIsZero.toFloat) + newBccDIsZero
   }
-
-  def testScreenTransform(pts: Tensor[Float], ptsScal: IndexedSeq[Point[_3D]]): Unit = {
-    val camera = RenderParameter.defaultSquare.camera
-    val session = Session()
-    //val pts = tf.stack(Seq(Seq(tfPt(0), tfPt(1), tfPt(2)), Seq(tfPt2(0), tfPt2(1), tfPt2(2))), axis=1).reshape(Shape(3,2))
-    val w = RenderParameter.default.imageSize.width
-    val h = RenderParameter.default.imageSize.height
-    val screenTrf = screenTransformation(pts, w, h)
-    val ret = session.run(fetches = Seq(screenTrf))
-    val tfRes = ret.toTensor
-    println(tfRes.summarize())
-    val gt = RenderParameter.default.imageSize.screenTransform(ptsScal(0))
-    println("point:", ptsScal(0))
-    println("ground truth: ", gt)
-    println("result: ", tfRes)
-    require(tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
-    require(
-      withinEps(gt.x, tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0)) &&
-        withinEps(gt.y, tfRes(0, 1, 0).entriesIterator.toIndexedSeq(0)) &&
-        withinEps(gt.z, tfRes(0, 2, 0).entriesIterator.toIndexedSeq(0))
-    )
-  }
-
-  def testPerspective(pts: Tensor[Float], ptsScal: IndexedSeq[Point[_3D]]): Unit = {
-    val camera = RenderParameter.defaultSquare.camera
-    val session = Session()
-    val proj = projectiveTransformation(pts, camera.near.toFloat, camera.far.toFloat, camera.sensorSize.x.toFloat, camera.sensorSize.y.toFloat, camera.focalLength.toFloat, camera.principalPoint.x.toFloat, camera.principalPoint.y.toFloat)
-    val ret = session.run(fetches = Seq(proj))
-    val tfRes = ret.toTensor
-    val gt = camera.projection(ptsScal(0))
-    println("point:", ptsScal(0))
-    println("ground truth: ", gt)
-    println("result: ", tfRes.summarize())
-    println(pts.dataType)
-    require(tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
-    require(
-      withinEps(gt.x, tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0)) &&
-        withinEps(gt.y, tfRes(0, 1, 0).entriesIterator.toIndexedSeq(0)) &&
-        withinEps(gt.z, tfRes(0, 2, 0).entriesIterator.toIndexedSeq(0))
-    )
-  }
-
-  def withinEps(a: Double, b: Float): Boolean = {
-    math.abs(a - b) < 0.0001f
-  }
-
-  def testPose(pts: Tensor[Float], ptsScal: IndexedSeq[Point[_3D]]): Unit = {
-    val yaw = 1f
-    val pitch = 0.1f
-    val roll = -0.1f
-    val translation = Vector(-10, 100, -1000)
-    val pose = Pose(1.0, translation, roll, yaw, pitch)
-
-    val session = Session()
-    val poseTrf = poseTransform(pts, pitch, yaw, roll, TFConversions.vec2Output(translation))
-
-    val ret = session.run(fetches = Seq(poseTrf))
-    val tfRes = ret.toTensor
-
-    val gt = pose.transform(ptsScal(0))
-    println("point:", ptsScal(0))
-    println("ground truth: ", gt)
-    println("result: ", tfRes)
-    println(tfRes.summarize())
-    require(tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
-    require(
-      withinEps(gt.x, tfRes(0, 0, 0).entriesIterator.toIndexedSeq(0)) &&
-        withinEps(gt.y, tfRes(0, 1, 0).entriesIterator.toIndexedSeq(0)) &&
-        withinEps(gt.z, tfRes(0, 2, 0).entriesIterator.toIndexedSeq(0))
-    )
-  }
-
-  def testFull(pts: Tensor[Float], ptsScal: IndexedSeq[Point[_3D]]): Unit = {
-    val session = Session()
-
-    val rnd = Random(100000L)
-
-    val tx = 0 + rnd.scalaRandom.nextDouble() * 20
-    val ty = 0 + rnd.scalaRandom.nextDouble() * 20
-    val tz = -1000 + rnd.scalaRandom.nextDouble() * 20
-    val roll = rnd.scalaRandom.nextDouble()
-    val yaw = rnd.scalaRandom.nextDouble()
-    val pitch = rnd.scalaRandom.nextDouble()
-    val w = rnd.scalaRandom.nextInt(50) + 50
-    val h = rnd.scalaRandom.nextInt(50) + 50
-    val pose = Pose(1.0, Vector(tx, ty, tz), roll, yaw, pitch)
-
-    val param = RenderParameter.defaultSquare.withPose(pose).withImageSize(ImageSize(w, h))
-
-    val inScreen = renderTransform(pts, TFPose(TFPose(param.pose)), TFCamera(TFCamera(param.camera)), w, h)
-
-    val result = session.run(fetches = Seq(inScreen)).toTensor
-
-    val gt = param.renderTransform(ptsScal(0))
-    require(result(0, 0, 0).entriesIterator.toIndexedSeq(0).isInstanceOf[Float])
-    require(withinEps(gt.x, result(0, 0, 0).entriesIterator.toIndexedSeq(0)) &&
-      withinEps(gt.y, result(0, 1, 0).entriesIterator.toIndexedSeq(0)) &&
-      withinEps(gt.z, result(0, 2, 0).entriesIterator.toIndexedSeq(0))
-    )
-  }
-
-  def testBCCScreenToWorld(mesh: TriangleMesh3D): Unit = {
-    /*val param = RenderParameter.defaultSquare
-    val corr = TriangleRenderer.renderCorrespondenceImage(mesh, param.pointShader, param.imageSize.width, param.imageSize.height)
-    val px = corr(256,256)
-    px.get.worldBCC*/
-  }
-
-  def main(args: Array[String]): Unit = {
-    val rnd = Random(100000L)
-
-    def rndP() = Point(rnd.scalaRandom.nextDouble() * 10, rnd.scalaRandom.nextDouble(), rnd.scalaRandom.nextDouble() * 10)
-
-    val pt = rndP()
-    val pt2 = rndP()
-    //Point(2,-1,5)
-    val ptsScal = IndexedSeq(pt, pt2)
-    val tfPt = TFConversions.pt2Output(pt)
-    val tfPt2 = TFConversions.pt2Output(pt2)
-    val pts = Tensor(tfPt, tfPt2).transpose().reshape(Shape(3, 2))
-
-    //val pts2 = tf.stack(Seq(Seq(tfPt(0), tfPt(1), tfPt(2)), Seq(tfPt2(0), tfPt2(1), tfPt2(2))), axis=1).reshape(Shape(3,2))
-    println(pts.shape)
-    //println(pts2.shape)
-
-    testPose(pts, ptsScal)
-    testPerspective(pts, ptsScal)
-    testScreenTransform(pts, ptsScal)
-
-    testFull(pts, ptsScal)
-  }
 }
-
-
-
-
