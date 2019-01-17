@@ -34,8 +34,8 @@ object Example {
       img.resample((img.width * 0.1).toInt, (img.height * 0.1).toInt)
     }
     val param = RenderParameterIO.read(new File("data/fit-best.rps")).get.fitToImageSize(image.width, image.height)
-    //val image = PixelImageIO.read[RGB](new File("/tmp/tf_rendering_sh_lambert.png")).get
-
+//    //val image = PixelImageIO.read[RGB](new File("/tmp/tf_rendering_sh_lambert.png")).get
+//
     val model = time("Initializing and loading model",
       {
         scalismo.initialize()
@@ -43,16 +43,16 @@ object Example {
         MoMoIO.read(momoFn).get
       })
 
-    //val mesh = MeshIO.read(new File("/home/andreas/export/mean2012_l7_bfm_pascaltex.msh.gz")).get.colorNormalMesh3D.get
+//    //val mesh = MeshIO.read(new File("/home/andreas/export/mean2012_l7_bfm_pascaltex.msh.gz")).get.colorNormalMesh3D.get
     val mesh = model.instance(param.momo.coefficients)
 
-//    time("Writing temp model", {
-//      MeshIO.write(mesh, new File("/tmp/jimmi_fit.ply")).get
-//    })
+////    time("Writing temp model", {
+////      MeshIO.write(mesh, new File("/tmp/jimmi_fit.ply")).get
+////    })
 
-//    val tfMesh = time("Transforming TFMesh", {
-//      TFMesh(mesh)
-//    })
+    val tfMesh = time("Transforming TFMesh", {
+      TFMesh(mesh)
+    })
 
     val initPose = time("Transforming TFPose", {
       TFPose(param.pose)
@@ -64,211 +64,211 @@ object Example {
       TFConversions.pointsToTensor(param.environmentMap.coefficients).transpose()
     })
 
-    //val variableModel = new OffsetFromInitializationModel(tfMesh.pts, tfMesh.colors, initPose, initCamera, initLight)
-//    val tfModel = time("Creating TFMoMo", {
-//      TFMoMo(model.expressionModel.get.truncate(80, 40, 5))
-//    })
-    /*
-    ==================================
-    This part used the incorrect mean!
-    ==================================
-     */
-    //    val tfMean = TFMesh(model.neutralModel.mean)
-//    val tfMean = time("Creating mean TFMesh", {
-//      TFMesh(model.mean)
-//    })
-
-//    val variableModel = time("Creating variable model", {
-//      TFMoMoExpressParameterModel(tfModel, tfMean, initPose, initCamera, initLight)
-//    })
-
-    // Parameter initialization
-    val verificationParam = {
-      val rps = RenderParameterIO.read(new File("../../Documents/datasets/data_300K_fewParameters50_crop_noSensor_lms/0_0.rps")).get
-      rps.copy(momo = rps.momo.copy(expression = rps.momo.expression.take(5)), camera = param.camera.copy(principalPoint = rps.camera.principalPoint, sensorSize = rps.camera.sensorSize), imageSize = param.imageSize)
-    }
-
-    def coefficientsToTensor(coefficients: MoMoCoefficients): Tensor[Float] = {
-      TFMoMoConversions.toTensor(DenseVector.vertcat(
-        coefficients.shape,
-        DenseVector.zeros[Double](80 - coefficients.shape.length),
-        coefficients.expression,
-        DenseVector.zeros[Double](5 - coefficients.expression.length)
-      ))
-    }
-
-    val paramTensorProto = coefficientsToTensor(param.momo.coefficients)
-    val verificationParamTensor = coefficientsToTensor(verificationParam.momo.coefficients)
-
-    val paramTensor = paramTensorProto.transpose()
-
-    val paramTensorStacked = using(Session())(_.run(fetches = tf.concatenate(Seq(paramTensorProto.toOutput, verificationParamTensor.toOutput), axis = 0)))
-
-    // Prepare render parameters
-    val translation = Tensor(TFConversions.vec2Tensor(param.pose.translation).transpose(), TFConversions.vec2Tensor(verificationParam.pose.translation).transpose())
-    
-    val cameraSensorSize = Output(Output(param.camera.sensorSize.x.toFloat, param.camera.sensorSize.y.toFloat), Output(verificationParam.camera.sensorSize.x.toFloat, verificationParam.camera.sensorSize.y.toFloat))
-
-    val cameraPrincipalPoint = Output(Output(param.camera.principalPoint.x.toFloat, param.camera.principalPoint.y.toFloat),
-      Output(verificationParam.camera.principalPoint.x.toFloat, verificationParam.camera.principalPoint.y.toFloat))
-
-    val roll = Output(param.pose.roll.toFloat, verificationParam.pose.roll.toFloat)
-    val pitch = Output(param.pose.pitch.toFloat, verificationParam.pose.pitch.toFloat)
-    val yaw = Output(param.pose.yaw.toFloat, verificationParam.pose.yaw.toFloat)
-    val cameraNear = param.camera.near.toFloat
-    val cameraFar = param.camera.far.toFloat
-    val focalLength = param.camera.focalLength.toFloat
-
-//    println(paramTensorStacked.shape)
-
-//    println(paramTensor.shape)
-
-//    val results = using(Session())(session => {
-//      session.run(targets = tf.globalVariablesInitializer())
-//      val assignOp = variableModel.ptsVar.assign(paramTensor)
-//      session.run(targets = assignOp)
-//      session.run(feeds = variableModel.feeds, fetches = variableModel.pts)
-//    })
-
-    val landmarkId = "left.eye.corner_outer"
-
-    val landmarkPointId = model.landmarkPointId(landmarkId).get
-
-    val tfLandmarksRenderer = time("Creating landmarksRenderer", {
-      TFLandmarksRenderer.transposed(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
+//    //val variableModel = new OffsetFromInitializationModel(tfMesh.pts, tfMesh.colors, initPose, initCamera, initLight)
+    val tfModel = time("Creating TFMoMo", {
+      TFMoMo(model.expressionModel.get.truncate(80, 40, 5))
+    })
+//    /*
+//    ==================================
+//    This part used the incorrect mean!
+//    ==================================
+//     */
+//    //    val tfMean = TFMesh(model.neutralModel.mean)
+    val tfMean = time("Creating mean TFMesh", {
+      TFMesh(model.mean)
     })
 
-    val tfBatchLandmarksRenderer = time("Creating batchLandmarksRenderer", {
-      TFLandmarksRenderer(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
+    val variableModel = time("Creating variable model", {
+      TFMoMoExpressParameterModel(tfModel, tfMean, initPose, initCamera, initLight)
     })
-
-    val tfLandmarksRendererMesh = tfLandmarksRenderer.getInstance(paramTensor)
-    val tfBatchLandmarksRendererMesh = tfBatchLandmarksRenderer.batchGetInstance(paramTensorStacked)
-//    println("LandmarksRenderer Mesh:")
-//    println(tfBatchLandmarksRendererMesh.summarize())
-
-    val landmarksRenderer = MoMoRenderer(model, RGBA.BlackTransparent)
-
-    val landmark = landmarksRenderer.renderLandmark(landmarkId, param).get
-    val verificationLandmark = landmarksRenderer.renderLandmark(landmarkId, verificationParam).get
-
-    val tfLandmarks = tfLandmarksRenderer.calculateLandmarks(paramTensor, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
-    val tfVerificationLandmarks = tfLandmarksRenderer.calculateLandmarks(verificationParamTensor.transpose(), TFPose(TFPose(verificationParam.pose)), TFCamera(TFCamera(verificationParam.camera)), image.width, image.height)
-
-    val tfBatchLandmarks = tfBatchLandmarksRenderer.batchCalculateLandmarks(paramTensorStacked, roll, pitch, yaw,
-      translation, cameraNear, cameraFar, cameraSensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)
-    //    println("Batch landmarks:")
-    //    println(tfBatchLandmarks.summarize())
-    val tfBatchLandmarks2D = using(Session())(_.run(fetches = tfBatchLandmarksRenderer.batchCalculateLandmarks2D(paramTensorStacked, roll, pitch, yaw,
-      translation, cameraSensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)))
-
-    println(s"Mesh pt0:                         ${mesh.shape.pointSet.point(PointId(0))}")
-//    println(s"TFMesh pt0:                  ${tfMesh.pts(0, 0).scalar}, ${tfMesh.pts(1, 0).scalar}, ${tfMesh.pts(2, 0).scalar}")
-//    println(s"variableModel pt0:           ${results(0, 0).scalar}, ${results(1, 0).scalar}, ${results(2, 0).scalar}")
-    println(s"tfLandmarksRendererMesh pt0:      ${tfLandmarksRendererMesh(0, 0).scalar}, ${tfLandmarksRendererMesh(1, 0).scalar}, ${tfLandmarksRendererMesh(2, 0).scalar}")
-    println(s"tfBatchLandmarksRendererMesh pt0: ${tfBatchLandmarksRendererMesh(0, 0, 0).scalar}, ${tfBatchLandmarksRendererMesh(0, 0, 1).scalar}, ${tfBatchLandmarksRendererMesh(0, 0, 2).scalar}")
-    println()
-
-    val verificationMesh = model.instance(verificationParam.momo.coefficients)
-
-    println(s"Mesh verification pt0:                         ${verificationMesh.shape.pointSet.point(PointId(0))}")
-    println(s"tfBatchLandmarksRendererMesh verification pt0: ${tfBatchLandmarksRendererMesh(1, 0, 0).scalar}, ${tfBatchLandmarksRendererMesh(1, 0, 1).scalar}, ${tfBatchLandmarksRendererMesh(1, 0, 2).scalar}")
-    println()
-
-//    val landmarkResults = {
-//      val landmarkPoint = results(::, landmarkPointId.id).expandDims(1)
-//      println(s"Param image size: ${param.imageSize.width}, ${param.imageSize.height}")
-//      println(s"Image size: ${image.width}, ${image.height}")
-//      val normalizedDeviceCoordinates = Transformations.objectToNDC(landmarkPoint, TFPose(initPose), TFCamera(initCamera))
-//      val tfNormalizedDeviceCoordinates = Transformations.ndcToTFNdc(normalizedDeviceCoordinates, image.width, image.height)
-//      // screenCoordinates are the correct landmark points
-//      val screenCoordinates = Transformations.screenTransformation(normalizedDeviceCoordinates, image.width, image.height)
-//      val tfScreenCoordinates = Transformations.screenTransformation(tfNormalizedDeviceCoordinates, image.width, image.height)
 //
-//      using(Session())(_.run(fetches = Seq(screenCoordinates, tfScreenCoordinates)))
+//    // Parameter initialization
+//    val verificationParam = {
+//      val rps = RenderParameterIO.read(new File("../../Documents/datasets/data_300K_fewParameters50_crop_noSensor_lms/0_0.rps")).get
+//      rps.copy(momo = rps.momo.copy(expression = rps.momo.expression.take(5)), camera = param.camera.copy(principalPoint = rps.camera.principalPoint, sensorSize = rps.camera.sensorSize), imageSize = param.imageSize)
 //    }
-
-    println(s"Mesh $landmarkId:                         ${mesh.shape.pointSet.point(landmarkPointId)}")
-//    println(s"variableModel $landmarkId:           ${results(0, landmarkPointId.id).scalar}, ${results(1, landmarkPointId.id).scalar}, ${results(2, landmarkPointId.id).scalar}")
-    println(s"tfLandmarksRendererMesh $landmarkId:      ${tfLandmarksRendererMesh(0, 1).scalar}, ${tfLandmarksRendererMesh(1, 1).scalar}, ${tfLandmarksRendererMesh(2, 1).scalar}")
-    println(s"tfBatchLandmarksRendererMesh $landmarkId: ${tfBatchLandmarksRendererMesh(0, 1, 0).scalar}, ${tfBatchLandmarksRendererMesh(0, 1, 1).scalar}, ${tfBatchLandmarksRendererMesh(0, 1, 2).scalar}")
-    println()
-
-    println(s"Mesh verification $landmarkId:                         ${verificationMesh.shape.pointSet.point(landmarkPointId)}")
-    println(s"tfBatchLandmarksRendererMesh verification $landmarkId: ${tfBatchLandmarksRendererMesh(1, 1, 0).scalar}, ${tfBatchLandmarksRendererMesh(1, 1, 1).scalar}, ${tfBatchLandmarksRendererMesh(1, 1, 2).scalar}")
-    println()
-
-    println(s"Normal renderer landmark:            ${landmark.point}")
-//    println(s"TF Landmark:                  ${landmarkResults.head(0, 0).scalar}, ${landmarkResults.head(1, 0).scalar}, ${landmarkResults.head(2, 0).scalar}")
-    //    println(s"TF Transformed Landmark: ${landmarkResults(1)(0, 0).scalar}, ${landmarkResults(1)(1, 0).scalar}, ${landmarkResults(1)(2, 0).scalar}")
-    println(s"TFLandmarksRenderer Landmark:        ${tfLandmarks(0, 1).scalar}, ${tfLandmarks(1, 1).scalar}, ${tfLandmarks(2, 1).scalar}")
-    println(s"TFBatchLandmarksRenderer Landmark:   ${tfBatchLandmarks(0, 1, 0).scalar}, ${tfBatchLandmarks(0, 1, 1).scalar}, ${tfBatchLandmarks(0, 1, 2).scalar}")
-    println(s"TFBatchLandmarksRenderer Landmark2D: ${tfBatchLandmarks2D(0, 1, 0).scalar}, ${tfBatchLandmarks2D(0, 1, 1).scalar}")
-    println()
-
-    println(s"Normal renderer verification landmark:            ${verificationLandmark.point}")
-    println(s"TFLandmarksRenderer verification Landmark:        ${tfVerificationLandmarks(0, 1).scalar}, ${tfVerificationLandmarks(1, 1).scalar}, ${tfVerificationLandmarks(2, 1).scalar}")
-    println(s"TFBatchLandmarksRenderer verification Landmark:   ${tfBatchLandmarks(1, 1, 0).scalar}, ${tfBatchLandmarks(1, 1, 1).scalar}, ${tfBatchLandmarks(1, 1, 2).scalar}")
-    println(s"TFBatchLandmarksRenderer verification Landmark2D: ${tfBatchLandmarks2D(1, 1, 0).scalar}, ${tfBatchLandmarks2D(1, 1, 1).scalar}")
-    println()
-
-    val neutralModel = model.neutralModel
-
-    val basicLandmarksRenderer = time("Creating basicLandmarksRenderer", {
-      TFLandmarksRenderer.transposed(neutralModel.truncate(80, 40), IndexedSeq(0, landmarkPointId.id))
-    })
-
-    val basicBatchLandmarksRenderer = time("Creating basicBatchLandmarksRenderer", {
-      TFLandmarksRenderer(neutralModel.truncate(80, 40), IndexedSeq(0, landmarkPointId.id))
-    })
-
-    val basicParams = paramTensor(0 :: 80)
-    val basicBatchParams = paramTensorStacked(::, 0 :: 80)
-
-    val basicInstance = basicLandmarksRenderer.getInstance(basicParams)
-    val basicLandmarks = basicLandmarksRenderer.calculateLandmarks(basicParams, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
-
-    val basicBatchInstance = basicBatchLandmarksRenderer.batchGetInstance(basicBatchParams)
-    val basicBatchLandmarks  = basicBatchLandmarksRenderer.batchCalculateLandmarks(basicBatchParams, roll, pitch, yaw,
-      translation, cameraNear, cameraFar, cameraSensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)
-
-//    println("Basic batch instance:")
-//    println(basicBatchInstance.summarize())
-
-    val neutralMesh = neutralModel.instance(param.momo.coefficients)
-
-    val neutralLandmarksRenderer = MoMoRenderer(neutralModel, RGBA.BlackTransparent)
-    val neutralLandmark = neutralLandmarksRenderer.renderLandmark(landmarkId, param).get
-    val neutralVerificationLandmark = neutralLandmarksRenderer.renderLandmark(landmarkId, verificationParam).get
-
-    println("Neutral model evaluation:")
-
-    println(s"Mesh pt0:                         ${neutralMesh.shape.pointSet.point(PointId(0))}")
-    println(s"tfLandmarksRendererMesh pt0:      ${basicInstance(0, 0).scalar}, ${basicInstance(1, 0).scalar}, ${basicInstance(2, 0).scalar}")
-    println(s"tfBatchLandmarksRendererMesh pt0: ${basicBatchInstance(0, 0, 0).scalar}, ${basicBatchInstance(0, 0, 1).scalar}, ${basicBatchInstance(0, 0, 2).scalar}")
-    println()
-
-    println(s"Mesh $landmarkId:                         ${neutralMesh.shape.pointSet.point(landmarkPointId)}")
-    println(s"tfLandmarksRendererMesh $landmarkId:      ${basicInstance(0, 1).scalar}, ${basicInstance(1, 1).scalar}, ${basicInstance(2, 1).scalar}")
-    println(s"tfBatchLandmarksRendererMesh $landmarkId: ${basicBatchInstance(0, 1, 0).scalar}, ${basicBatchInstance(0, 1, 1).scalar}, ${basicBatchInstance(0, 1, 2).scalar}")
-    println()
-
-    println(s"Normal renderer landmark:          ${neutralLandmark.point}")
-    println(s"TFLandmarksRenderer Landmark:      ${basicLandmarks(0, 1).scalar}, ${basicLandmarks(1, 1).scalar}, ${basicLandmarks(2, 1).scalar}")
-    println(s"TFBatchLandmarksRenderer Landmark: ${basicBatchLandmarks(0, 1, 0).scalar}, ${basicBatchLandmarks(0, 1, 1).scalar}, ${basicBatchLandmarks(0, 1, 2).scalar}")
-    println()
-
-    println(s"Normal renderer verification landmark:          ${neutralVerificationLandmark.point}")
-    println(s"TFBatchLandmarksRenderer verification Landmark: ${basicBatchLandmarks(1, 1, 0).scalar}, ${basicBatchLandmarks(1, 1, 1).scalar}, ${basicBatchLandmarks(1, 1, 2).scalar}")
-
-    System.exit(0)
+//
+//    def coefficientsToTensor(coefficients: MoMoCoefficients): Tensor[Float] = {
+//      TFMoMoConversions.toTensor(DenseVector.vertcat(
+//        coefficients.shape,
+//        DenseVector.zeros[Double](80 - coefficients.shape.length),
+//        coefficients.expression,
+//        DenseVector.zeros[Double](5 - coefficients.expression.length)
+//      ))
+//    }
+//
+//    val paramTensorProto = coefficientsToTensor(param.momo.coefficients)
+//    val verificationParamTensor = coefficientsToTensor(verificationParam.momo.coefficients)
+//
+//    val paramTensor = paramTensorProto.transpose()
+//
+//    val paramTensorStacked = using(Session())(_.run(fetches = tf.concatenate(Seq(paramTensorProto.toOutput, verificationParamTensor.toOutput), axis = 0)))
+//
+//    // Prepare render parameters
+//    val translation = Tensor(TFConversions.vec2Tensor(param.pose.translation).transpose(), TFConversions.vec2Tensor(verificationParam.pose.translation).transpose())
+//
+//    val cameraSensorSize = Output(Output(param.camera.sensorSize.x.toFloat, param.camera.sensorSize.y.toFloat), Output(verificationParam.camera.sensorSize.x.toFloat, verificationParam.camera.sensorSize.y.toFloat))
+//
+//    val cameraPrincipalPoint = Output(Output(param.camera.principalPoint.x.toFloat, param.camera.principalPoint.y.toFloat),
+//      Output(verificationParam.camera.principalPoint.x.toFloat, verificationParam.camera.principalPoint.y.toFloat))
+//
+//    val roll = Output(param.pose.roll.toFloat, verificationParam.pose.roll.toFloat)
+//    val pitch = Output(param.pose.pitch.toFloat, verificationParam.pose.pitch.toFloat)
+//    val yaw = Output(param.pose.yaw.toFloat, verificationParam.pose.yaw.toFloat)
+//    val cameraNear = param.camera.near.toFloat
+//    val cameraFar = param.camera.far.toFloat
+//    val focalLength = param.camera.focalLength.toFloat
+//
+////    println(paramTensorStacked.shape)
+//
+////    println(paramTensor.shape)
+//
+////    val results = using(Session())(session => {
+////      session.run(targets = tf.globalVariablesInitializer())
+////      val assignOp = variableModel.ptsVar.assign(paramTensor)
+////      session.run(targets = assignOp)
+////      session.run(feeds = variableModel.feeds, fetches = variableModel.pts)
+////    })
+//
+//    val landmarkId = "left.eye.corner_outer"
+//
+//    val landmarkPointId = model.landmarkPointId(landmarkId).get
+//
+//    val tfLandmarksRenderer = time("Creating landmarksRenderer", {
+//      TFLandmarksRenderer.transposed(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
+//    })
+//
+//    val tfBatchLandmarksRenderer = time("Creating batchLandmarksRenderer", {
+//      TFLandmarksRenderer(model.expressionModel.get.truncate(80, 40, 5), IndexedSeq(0, landmarkPointId.id))
+//    })
+//
+//    val tfLandmarksRendererMesh = tfLandmarksRenderer.getInstance(paramTensor)
+//    val tfBatchLandmarksRendererMesh = tfBatchLandmarksRenderer.batchGetInstance(paramTensorStacked)
+////    println("LandmarksRenderer Mesh:")
+////    println(tfBatchLandmarksRendererMesh.summarize())
+//
+//    val landmarksRenderer = MoMoRenderer(model, RGBA.BlackTransparent)
+//
+//    val landmark = landmarksRenderer.renderLandmark(landmarkId, param).get
+//    val verificationLandmark = landmarksRenderer.renderLandmark(landmarkId, verificationParam).get
+//
+//    val tfLandmarks = tfLandmarksRenderer.calculateLandmarks(paramTensor, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
+//    val tfVerificationLandmarks = tfLandmarksRenderer.calculateLandmarks(verificationParamTensor.transpose(), TFPose(TFPose(verificationParam.pose)), TFCamera(TFCamera(verificationParam.camera)), image.width, image.height)
+//
+//    val tfBatchLandmarks = tfBatchLandmarksRenderer.batchCalculateLandmarks(paramTensorStacked, roll, pitch, yaw,
+//      translation, cameraNear, cameraFar, cameraSensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)
+//    //    println("Batch landmarks:")
+//    //    println(tfBatchLandmarks.summarize())
+//    val tfBatchLandmarks2D = using(Session())(_.run(fetches = tfBatchLandmarksRenderer.batchCalculateLandmarks2D(paramTensorStacked, roll, pitch, yaw,
+//      translation, cameraSensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)))
+//
+//    println(s"Mesh pt0:                         ${mesh.shape.pointSet.point(PointId(0))}")
+////    println(s"TFMesh pt0:                  ${tfMesh.pts(0, 0).scalar}, ${tfMesh.pts(1, 0).scalar}, ${tfMesh.pts(2, 0).scalar}")
+////    println(s"variableModel pt0:           ${results(0, 0).scalar}, ${results(1, 0).scalar}, ${results(2, 0).scalar}")
+//    println(s"tfLandmarksRendererMesh pt0:      ${tfLandmarksRendererMesh(0, 0).scalar}, ${tfLandmarksRendererMesh(1, 0).scalar}, ${tfLandmarksRendererMesh(2, 0).scalar}")
+//    println(s"tfBatchLandmarksRendererMesh pt0: ${tfBatchLandmarksRendererMesh(0, 0, 0).scalar}, ${tfBatchLandmarksRendererMesh(0, 0, 1).scalar}, ${tfBatchLandmarksRendererMesh(0, 0, 2).scalar}")
+//    println()
+//
+//    val verificationMesh = model.instance(verificationParam.momo.coefficients)
+//
+//    println(s"Mesh verification pt0:                         ${verificationMesh.shape.pointSet.point(PointId(0))}")
+//    println(s"tfBatchLandmarksRendererMesh verification pt0: ${tfBatchLandmarksRendererMesh(1, 0, 0).scalar}, ${tfBatchLandmarksRendererMesh(1, 0, 1).scalar}, ${tfBatchLandmarksRendererMesh(1, 0, 2).scalar}")
+//    println()
+//
+////    val landmarkResults = {
+////      val landmarkPoint = results(::, landmarkPointId.id).expandDims(1)
+////      println(s"Param image size: ${param.imageSize.width}, ${param.imageSize.height}")
+////      println(s"Image size: ${image.width}, ${image.height}")
+////      val normalizedDeviceCoordinates = Transformations.objectToNDC(landmarkPoint, TFPose(initPose), TFCamera(initCamera))
+////      val tfNormalizedDeviceCoordinates = Transformations.ndcToTFNdc(normalizedDeviceCoordinates, image.width, image.height)
+////      // screenCoordinates are the correct landmark points
+////      val screenCoordinates = Transformations.screenTransformation(normalizedDeviceCoordinates, image.width, image.height)
+////      val tfScreenCoordinates = Transformations.screenTransformation(tfNormalizedDeviceCoordinates, image.width, image.height)
+////
+////      using(Session())(_.run(fetches = Seq(screenCoordinates, tfScreenCoordinates)))
+////    }
+//
+//    println(s"Mesh $landmarkId:                         ${mesh.shape.pointSet.point(landmarkPointId)}")
+////    println(s"variableModel $landmarkId:           ${results(0, landmarkPointId.id).scalar}, ${results(1, landmarkPointId.id).scalar}, ${results(2, landmarkPointId.id).scalar}")
+//    println(s"tfLandmarksRendererMesh $landmarkId:      ${tfLandmarksRendererMesh(0, 1).scalar}, ${tfLandmarksRendererMesh(1, 1).scalar}, ${tfLandmarksRendererMesh(2, 1).scalar}")
+//    println(s"tfBatchLandmarksRendererMesh $landmarkId: ${tfBatchLandmarksRendererMesh(0, 1, 0).scalar}, ${tfBatchLandmarksRendererMesh(0, 1, 1).scalar}, ${tfBatchLandmarksRendererMesh(0, 1, 2).scalar}")
+//    println()
+//
+//    println(s"Mesh verification $landmarkId:                         ${verificationMesh.shape.pointSet.point(landmarkPointId)}")
+//    println(s"tfBatchLandmarksRendererMesh verification $landmarkId: ${tfBatchLandmarksRendererMesh(1, 1, 0).scalar}, ${tfBatchLandmarksRendererMesh(1, 1, 1).scalar}, ${tfBatchLandmarksRendererMesh(1, 1, 2).scalar}")
+//    println()
+//
+//    println(s"Normal renderer landmark:            ${landmark.point}")
+////    println(s"TF Landmark:                  ${landmarkResults.head(0, 0).scalar}, ${landmarkResults.head(1, 0).scalar}, ${landmarkResults.head(2, 0).scalar}")
+//    //    println(s"TF Transformed Landmark: ${landmarkResults(1)(0, 0).scalar}, ${landmarkResults(1)(1, 0).scalar}, ${landmarkResults(1)(2, 0).scalar}")
+//    println(s"TFLandmarksRenderer Landmark:        ${tfLandmarks(0, 1).scalar}, ${tfLandmarks(1, 1).scalar}, ${tfLandmarks(2, 1).scalar}")
+//    println(s"TFBatchLandmarksRenderer Landmark:   ${tfBatchLandmarks(0, 1, 0).scalar}, ${tfBatchLandmarks(0, 1, 1).scalar}, ${tfBatchLandmarks(0, 1, 2).scalar}")
+//    println(s"TFBatchLandmarksRenderer Landmark2D: ${tfBatchLandmarks2D(0, 1, 0).scalar}, ${tfBatchLandmarks2D(0, 1, 1).scalar}")
+//    println()
+//
+//    println(s"Normal renderer verification landmark:            ${verificationLandmark.point}")
+//    println(s"TFLandmarksRenderer verification Landmark:        ${tfVerificationLandmarks(0, 1).scalar}, ${tfVerificationLandmarks(1, 1).scalar}, ${tfVerificationLandmarks(2, 1).scalar}")
+//    println(s"TFBatchLandmarksRenderer verification Landmark:   ${tfBatchLandmarks(1, 1, 0).scalar}, ${tfBatchLandmarks(1, 1, 1).scalar}, ${tfBatchLandmarks(1, 1, 2).scalar}")
+//    println(s"TFBatchLandmarksRenderer verification Landmark2D: ${tfBatchLandmarks2D(1, 1, 0).scalar}, ${tfBatchLandmarks2D(1, 1, 1).scalar}")
+//    println()
+//
+//    val neutralModel = model.neutralModel
+//
+//    val basicLandmarksRenderer = time("Creating basicLandmarksRenderer", {
+//      TFLandmarksRenderer.transposed(neutralModel.truncate(80, 40), IndexedSeq(0, landmarkPointId.id))
+//    })
+//
+//    val basicBatchLandmarksRenderer = time("Creating basicBatchLandmarksRenderer", {
+//      TFLandmarksRenderer(neutralModel.truncate(80, 40), IndexedSeq(0, landmarkPointId.id))
+//    })
+//
+//    val basicParams = paramTensor(0 :: 80)
+//    val basicBatchParams = paramTensorStacked(::, 0 :: 80)
+//
+//    val basicInstance = basicLandmarksRenderer.getInstance(basicParams)
+//    val basicLandmarks = basicLandmarksRenderer.calculateLandmarks(basicParams, TFPose(initPose), TFCamera(initCamera), image.width, image.height)
+//
+//    val basicBatchInstance = basicBatchLandmarksRenderer.batchGetInstance(basicBatchParams)
+//    val basicBatchLandmarks  = basicBatchLandmarksRenderer.batchCalculateLandmarks(basicBatchParams, roll, pitch, yaw,
+//      translation, cameraNear, cameraFar, cameraSensorSize, focalLength, cameraPrincipalPoint, image.width, image.height)
+//
+////    println("Basic batch instance:")
+////    println(basicBatchInstance.summarize())
+//
+//    val neutralMesh = neutralModel.instance(param.momo.coefficients)
+//
+//    val neutralLandmarksRenderer = MoMoRenderer(neutralModel, RGBA.BlackTransparent)
+//    val neutralLandmark = neutralLandmarksRenderer.renderLandmark(landmarkId, param).get
+//    val neutralVerificationLandmark = neutralLandmarksRenderer.renderLandmark(landmarkId, verificationParam).get
+//
+//    println("Neutral model evaluation:")
+//
+//    println(s"Mesh pt0:                         ${neutralMesh.shape.pointSet.point(PointId(0))}")
+//    println(s"tfLandmarksRendererMesh pt0:      ${basicInstance(0, 0).scalar}, ${basicInstance(1, 0).scalar}, ${basicInstance(2, 0).scalar}")
+//    println(s"tfBatchLandmarksRendererMesh pt0: ${basicBatchInstance(0, 0, 0).scalar}, ${basicBatchInstance(0, 0, 1).scalar}, ${basicBatchInstance(0, 0, 2).scalar}")
+//    println()
+//
+//    println(s"Mesh $landmarkId:                         ${neutralMesh.shape.pointSet.point(landmarkPointId)}")
+//    println(s"tfLandmarksRendererMesh $landmarkId:      ${basicInstance(0, 1).scalar}, ${basicInstance(1, 1).scalar}, ${basicInstance(2, 1).scalar}")
+//    println(s"tfBatchLandmarksRendererMesh $landmarkId: ${basicBatchInstance(0, 1, 0).scalar}, ${basicBatchInstance(0, 1, 1).scalar}, ${basicBatchInstance(0, 1, 2).scalar}")
+//    println()
+//
+//    println(s"Normal renderer landmark:          ${neutralLandmark.point}")
+//    println(s"TFLandmarksRenderer Landmark:      ${basicLandmarks(0, 1).scalar}, ${basicLandmarks(1, 1).scalar}, ${basicLandmarks(2, 1).scalar}")
+//    println(s"TFBatchLandmarksRenderer Landmark: ${basicBatchLandmarks(0, 1, 0).scalar}, ${basicBatchLandmarks(0, 1, 1).scalar}, ${basicBatchLandmarks(0, 1, 2).scalar}")
+//    println()
+//
+//    println(s"Normal renderer verification landmark:          ${neutralVerificationLandmark.point}")
+//    println(s"TFBatchLandmarksRenderer verification Landmark: ${basicBatchLandmarks(1, 1, 0).scalar}, ${basicBatchLandmarks(1, 1, 1).scalar}, ${basicBatchLandmarks(1, 1, 2).scalar}")
+//
+//    System.exit(0)
     /*
     =====================================================
                        END OF TEST CODE
     =====================================================
      */
 
-    /*
+
     val renderer = TFRenderer(tfMesh, variableModel.pts, variableModel.colors, variableModel.pose, variableModel.camera, variableModel.illumination, param.imageSize.width, param.imageSize.height)
 
     def renderInitialParametersAndCompareToGroundTruth(): Unit = {
@@ -423,7 +423,7 @@ object Example {
 
     val finalFullMesh = VertexColorMesh3D(finalMesh, mesh.color)
     MeshIO.write(finalFullMesh, new File("/tmp/jimmi.ply")).get
-    */
+
 
   }
 

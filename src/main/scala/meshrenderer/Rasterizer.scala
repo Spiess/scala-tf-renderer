@@ -43,7 +43,7 @@ object Rasterizer {
     *                     triangle.
     */
   def rasterize_triangles(vertices: Output[Float],
-                          triangles: Output[Float],
+                          triangles: Output[Int],
                           image_width: Int,
                           image_height: Int,
                           name: String = "rasterize_triangles"): RasterizationOutput = {
@@ -51,9 +51,11 @@ object Rasterizer {
 
 
     // TODO: Find out how Op registration works in TF Scala 0.4
-    val gradientFn: Gradients.GradientFn[Seq[Output[Float]], Seq[Output[Float]], Seq[Output[Float]], Seq[Output[Float]]] = rasterizeTrianglesGrad
+    val gradientFn: Gradients.GradientFn[Seq[Output[Any]], Seq[Output[Float]], Seq[Output[Float]], Seq[Output[Float]]] = rasterizeTrianglesGrad
 
-    val outs: Op[Seq[Output[Float]], Seq[Output[Float]]] = Op.Builder[Seq[Output[Float]], Seq[Output[Float]]](opType = "RasterizeTriangles", name, input = Seq(vertices, triangles))
+    val inputs: Seq[Output[_ >: Float with Int <: AnyVal]] = Seq(vertices, triangles)
+
+    val outs: Op[Seq[Output[Any]], Seq[Output[Float]]] = Op.Builder[Seq[Output[Any]], Seq[Output[Float]]](opType = "RasterizeTriangles", name, inputs, addAsIndividualInputs = true)
       .setAttribute("image_width", image_width)
       .setAttribute("image_height", image_height)
       .setGradientFn(rasterizeTrianglesGrad) // TODO: Is this enough/does this work?
@@ -62,7 +64,7 @@ object Rasterizer {
     RasterizationOutput(outs.outputsSeq.head.toFloat, outs.outputsSeq(1).toInt, outs.outputsSeq(2).toFloat)
   }
 
-  def rasterizeTrianglesGrad(op: Op[Seq[Output[Float]], Seq[Output[Float]]], outputGradients: Seq[Output[Float]]): Seq[Output[Float]] = {
+  def rasterizeTrianglesGrad(op: Op[Seq[Output[Any]], Seq[Output[Float]]], outputGradients: Seq[Output[Float]]): Seq[Output[Float]] = {
     println("outputGradients", outputGradients.length)
     println("outputGradients", outputGradients.head)
     println("outputGradients", outputGradients(1))
