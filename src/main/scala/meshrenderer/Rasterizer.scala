@@ -51,14 +51,14 @@ object Rasterizer {
 
 
     // TODO: Find out how Op registration works in TF Scala 0.4
-    val gradientFn: Gradients.GradientFn[Seq[Output[Any]], Seq[Output[Float]], Seq[Output[Float]], Seq[Output[Float]]] = rasterizeTrianglesGrad
+    val gradientFn: Gradients.GradientFn[Seq[Output[Any]], Seq[Output[Float]], Seq[Output[Any]], Seq[Output[Float]]] = rasterizeTrianglesGrad
 
-    val inputs: Seq[Output[_ >: Float with Int <: AnyVal]] = Seq(vertices, triangles)
+    val inputs: Seq[Output[Any]] = Seq(vertices, triangles)
 
     val outs: Op[Seq[Output[Any]], Seq[Output[Float]]] = Op.Builder[Seq[Output[Any]], Seq[Output[Float]]](opType = "RasterizeTriangles", name, inputs, addAsIndividualInputs = true)
       .setAttribute("image_width", image_width)
       .setAttribute("image_height", image_height)
-      .setGradientFn(rasterizeTrianglesGrad) // TODO: Is this enough/does this work?
+      .setGradientFn(gradientFn) // TODO: Is this enough/does this work?
       .build()
 
     RasterizationOutput(outs.outputsSeq.head.toFloat, outs.outputsSeq(1).toInt, outs.outputsSeq(2).toFloat)
