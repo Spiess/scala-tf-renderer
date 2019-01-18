@@ -25,12 +25,12 @@ object Rasterizer {
     * @param image_width  positive int attribute specifying the width of the output image.
     * @param image_height positive int attribute specifying the height of the output image.
     *
-    *                     barycentric_coordinates: 3-D tensor with shape [image_height, image_width, 3]
+    * barycentric_coordinates: 3-D tensor with shape [image_height, image_width, 3]
     *                     containing the rendered barycentric coordinate triplet per pixel, before
     *                     perspective correction. The triplet is the zero vector if the pixel is outside
     *                     the mesh boundary. For valid pixels, the ordering of the coordinates
     *                     corresponds to the ordering in triangles.
-    *                     triangle_ids: 2-D tensor with shape [image_height, image_width]. Contains the
+    * triangle_ids: 2-D tensor with shape [image_height, image_width]. Contains the
     *                     triangle id value for each pixel in the output image. For pixels within the
     *                     mesh, this is the integer value in the range [0, num_vertices] from triangles.
     *                     For vertices outside the mesh this is 0; 0 can either indicate belonging to
@@ -38,7 +38,7 @@ object Rasterizer {
     *                     will validly index into the vertex array, enabling the use of tf.gather with
     *                     indices from this tensor. The barycentric coordinates can be used to determine
     *                     pixel validity instead.
-    *                     z_buffer: 2-D tensor with shape [image_height, image_width]. Contains the Z
+    * z_buffer: 2-D tensor with shape [image_height, image_width]. Contains the Z
     *                     coordinate in vae.Normalized Device Coordinates for each pixel occupied by a
     *                     triangle.
     */
@@ -60,6 +60,20 @@ object Rasterizer {
       .setAttribute("image_height", image_height)
       .setGradientFn(gradientFn) // TODO: Is this enough/does this work?
       .build()
+
+    /*
+    In case the Op.Builder quits with the error that it's missing a shape function recompile rasterizer kernel with:
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+      int imgWidth;
+      int imgHeight;
+      c->GetAttr("image_width", &imgWidth);
+      c->GetAttr("image_height", &imgHeight);
+      c->set_output(0, c->MakeShape({imgHeight, imgWidth, 3}));
+      c->set_output(1, c->MakeShape({imgHeight, imgWidth}));
+      c->set_output(2, c->MakeShape({imgHeight, imgWidth}));
+      return Status::OK();
+    })
+     */
 
     RasterizationOutput(outs.outputsSeq.head.toFloat, outs.outputsSeq(1).toInt, outs.outputsSeq(2).toFloat)
   }

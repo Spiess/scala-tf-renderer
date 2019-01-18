@@ -69,8 +69,8 @@ object TFConversions {
     val bufferCapacity = image.height * image.width * 3 * 4
     val buffer = ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder())
     for (
-      x <- 0 until image.width;
-      y <- 0 until image.height
+      y <- 0 until image.height;
+      x <- 0 until image.width
     ) {
       val rgb = image.valueAt(x, y)
       buffer.putFloat(rgb.r.toFloat)
@@ -78,10 +78,9 @@ object TFConversions {
       buffer.putFloat(rgb.b.toFloat)
     }
     buffer.flip()
-    val ret = Tensor.fromBuffer[Float](Shape(image.width, image.height, 3), bufferCapacity, buffer)
-    println(ret.summarize())
+    val ret = Tensor.fromBuffer[Float](Shape(image.height, image.width, 3), bufferCapacity, buffer)
 
-    ret(0)
+    ret
   }
 
   def tensorImage3dToPixelImage(dataRaw: Tensor[Float], domain: PixelImageDomain): PixelImage[RGB] = {
