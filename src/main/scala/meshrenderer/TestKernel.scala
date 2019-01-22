@@ -11,13 +11,16 @@ object TestKernel {
   def main(args: Array[String]): Unit = {
     org.platanios.tensorflow.jni.TensorFlow.loadOpLibrary("lib/rasterize_triangles_kernel.so")
 
+    // Why is this not accurate? Currently claims to be 1.12.0-rc0 when it is definitely 1.13.0-dev20181121 or similar.
+    println("TensorFlow Version: " + org.platanios.tensorflow.jni.TensorFlow.version)
+
     val image_width = 227
     val image_height = 227
 
 //    val vertices = tf.placeholder[Float](Shape(-1, 3))
 //    val triangles = tf.placeholder[Int](Shape(-1, 3))
-    val vertices = Tensor(0 until 30).toFloat.reshape(Shape(10, 3))
-    val triangles = Tensor(Seq(0 until 15)).reshape(Shape(5, 3))
+    val vertices = Tensor(Tensor(-1, -1, 1), Tensor(-1, -1, -1), Tensor(-1, 1, -1), Tensor(-1, 1, 1), Tensor(1, -1, 1), Tensor(1, -1, -1), Tensor(1, 1, -1), Tensor(1, 1, 1)).toFloat
+    val triangles = Tensor(Tensor(0, 1, 2), Tensor(2, 3, 0), Tensor(3, 2, 6), Tensor(6, 7, 3), Tensor(7, 6, 5), Tensor(5, 4, 7), Tensor(4, 5, 1), Tensor(1, 0, 4), Tensor(5, 6, 2), Tensor(2, 1, 5), Tensor(7, 4, 0), Tensor(0, 3, 7))
 
     val gradientFn: Gradients.GradientFn[Seq[Output[Any]], Seq[Output[Float]], Seq[Output[Any]], Seq[Output[Float]]] = rasterizeTrianglesGrad
 

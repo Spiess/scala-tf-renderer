@@ -264,7 +264,7 @@ object Example {
 //    System.exit(0)
     /*
     =====================================================
-                       END OF TEST CODE
+                   END OF LANDMARK TEST CODE
     =====================================================
      */
 
@@ -274,6 +274,17 @@ object Example {
     def renderInitialParametersAndCompareToGroundTruth(): Unit = {
       val sess = Session()
       sess.run(targets = tf.globalVariablesInitializer())
+
+      // Test output to check renderer results
+      {
+        val testResults = sess.run(
+          feeds = variableModel.feeds,
+          fetches = renderer.ndcPtsTf
+        )
+
+        println("ndcPtsTf: ")
+        println(testResults.summarize())
+      }
 
       val result = sess.run(
         feeds = variableModel.feeds,
@@ -369,6 +380,9 @@ object Example {
       xs,
       Float
     )
+
+    println(s"val grad: $grad")
+
     val optimizer = tf.train.AMSGrad(0.1f, name = "adal")
     // TODO: applyGradients requires Variable[Any] here for some reason, bug maybe?
     val gradients: Seq[(OutputLike[Float], api.tf.Variable[Any])] = Seq(
