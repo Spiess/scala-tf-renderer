@@ -81,13 +81,6 @@ object Example {
     })
 
 
-    /*
-    =====================================================
-                   END OF LANDMARK TEST CODE
-    =====================================================
-     */
-
-
     val renderer = TFRenderer(tfMesh, variableModel.pts, variableModel.colors, variableModel.pose, variableModel.camera, variableModel.illumination, param.imageSize.width, param.imageSize.height)
 
     def renderInitialParametersAndCompareToGroundTruth(): Unit = {
