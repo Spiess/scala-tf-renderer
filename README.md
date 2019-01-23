@@ -1,5 +1,7 @@
 # Inverse Renderer in Scala with Tensorflow
 
+## Build
+
 Uses the `rasterize_triangles_kernel.so` from [tf_mesh_renderer](https://github.com/google/tf_mesh_renderer)
 (commit a6403fbb36a71443ecb822e435e5724550d2b52b or earlier). The kernel must be compiled using the version of
 TensorFlow used by the TensorFlow Scala binary used (`tf-nightly-gpu==1.13.0.dev20181121` for TensorFlow Scala GPU
@@ -21,14 +23,24 @@ following code snippet to the operation registration in `rasterize_triangles_op.
 })
 ```
 
-Features:
+If TensorFlow Scala claims to require a shape function for the `RasterizeTrianglesGrad` operation, you may have to add
+the following code snippet to the operation registration in `rasterize_triangles_grad.cc` before compiling the
+`rasterize_triangles_kernel.so`:
+```
+.SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+  c->set_output(0, c->input(0));
+  return Status::OK();
+})
+```
+
+## Features:
 
 * interpolate vertex attributes
 * spherical harmonics illumination
 * optimize for color, pose, illumination, vertex position, camera parameters. 
 
 
-Please cite: 
+## Please cite:
 ```latex
 @article{schneider2017efficient,
   title={Efficient global illumination for morphable models},
