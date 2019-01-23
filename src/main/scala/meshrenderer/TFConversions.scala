@@ -16,7 +16,7 @@ import scalismo.geometry.{Point, Vector, _3D}
   */
 object TFConversions {
 
-  // TODO: Update with more efficient Tensor initialization and better shape (3) or (1, 3)
+  // TODO: Update with better shape (3) or (1, 3)
   def pt2Output(pt: Point[_3D]): Tensor[Float] = {
     Tensor(pt.x.toFloat, pt.y.toFloat, pt.z.toFloat).reshape(Shape(3, 1))
   }
@@ -55,17 +55,6 @@ object TFConversions {
   }
 
   def image3dToTensor(image: PixelImage[RGB]): Tensor[Float] = {
-//    val res = Array.fill(image.height, image.width, 3)(0.0f)
-//    for (r <- 0 until image.height) {
-//      for (c <- 0 until image.width) {
-//        val px = image(c, r)
-//        res(r)(c)(0) = px.r.toFloat
-//        res(r)(c)(1) = px.g.toFloat
-//        res(r)(c)(2) = px.b.toFloat
-//      }
-//    }
-//    println(res)
-    // TODO: Implement fast version with ByteBuffer
     val bufferCapacity = image.height * image.width * 3 * 4
     val buffer = ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder())
     for (
@@ -129,8 +118,6 @@ object TFConversions {
 
   def sequenceImage3dToPixelImage(data: Seq[Double], domain: PixelImageDomain): PixelImage[RGB] = {
     require(data.size == domain.width * domain.height * 3)
-    val w = domain.width
-    val h = domain.height
     PixelImage(domain.width, domain.height, (x, y) => {
       val first = domain.index(x, y) * 3
       val second = domain.index(x, y) * 3 + 1

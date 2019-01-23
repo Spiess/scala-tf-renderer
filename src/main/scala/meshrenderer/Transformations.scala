@@ -294,7 +294,7 @@ object Transformations {
     val z1 = zCoordinatesPerVertex(::, ::, 0)
     val z2 = zCoordinatesPerVertex(::, ::, 1)
     val z3 = zCoordinatesPerVertex(::, ::, 2)
-    val a = bccScreen(::, ::, 0)
+    //val a = bccScreen(::, ::, 0)
     val b = bccScreen(::, ::, 1)
     val c = bccScreen(::, ::, 2)
     //val d = z2*z3 + z3*b * (z1-z2) + z2*c * (z1-z3)

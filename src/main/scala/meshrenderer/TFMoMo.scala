@@ -78,11 +78,6 @@ case class TFMoMoExpressParameterModel(model: TFMoMoExpress, mean: TFMesh, initP
 
 object TFMoMoConversions {
 
-  def toTensor(momo: MoMoBasic): Unit = {
-    val ev = momo.shape.basisMatrix
-    val variance = momo.shape.variance
-  }
-
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def toTensor(mat: DenseMatrix[Double]): Tensor[Float] = {
     toTensorNotTransposed(mat).transpose()

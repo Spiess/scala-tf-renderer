@@ -4,6 +4,9 @@ import org.platanios.tensorflow.api.core.Shape
 import org.platanios.tensorflow.api.ops.Gradients
 import org.platanios.tensorflow.api.{Output, tf, _}
 
+/**
+  * Object to test the gradient function and how it behaves with variables.
+  */
 object TestGradients {
   def main(args: Array[String]): Unit = {
     val aVar = tf.variable[Float]("a", Shape(20, 3))

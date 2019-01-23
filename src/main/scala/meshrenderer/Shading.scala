@@ -123,7 +123,7 @@ object Shading {
   }
 
   def sphericalHarmonicsLambertShader(albedoPerPixel: Output[Float], normalsPerPixel: Output[Float], envMap: Output[Float]): Output[Float] = {
-    val nCoeffs = envMap.shape(0)
+    //val nCoeffs = envMap.shape(0)
     val sh = shBasis(normalsPerPixel.reshape(Shape(-1,3)))
     val lk = Tensor(SphericalHarmonicsLight.lambertKernel.map(_.toFloat)).reshape(Shape(9,1))
     val shlk = sh*lk

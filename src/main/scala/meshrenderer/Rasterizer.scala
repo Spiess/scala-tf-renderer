@@ -50,7 +50,6 @@ object Rasterizer {
     org.platanios.tensorflow.jni.TensorFlow.loadOpLibrary(path)
 
 
-    // TODO: Find out how Op registration works in TF Scala 0.4
     val gradientFn: Gradients.GradientFn[Seq[Output[Any]], Seq[Output[Float]], Seq[Output[Any]], Seq[Output[Float]]] = rasterizeTrianglesGrad
 
     val inputs: Seq[Output[Any]] = Seq(vertices, triangles)
@@ -58,7 +57,7 @@ object Rasterizer {
     val outs: Op[Seq[Output[Any]], Seq[Output[Float]]] = Op.Builder[Seq[Output[Any]], Seq[Output[Float]]](opType = "RasterizeTriangles", name, inputs, addAsIndividualInputs = true)
       .setAttribute("image_width", image_width)
       .setAttribute("image_height", image_height)
-      .setGradientFn(gradientFn) // TODO: Is this enough/does this work?
+      .setGradientFn(gradientFn)
       .build()
 
     /*
@@ -79,16 +78,12 @@ object Rasterizer {
   }
 
   def rasterizeTrianglesGrad(op: Op[Seq[Output[Any]], Seq[Output[Float]]], outputGradients: Seq[Output[Float]]): Seq[Output[Float]] = {
-    println("outputGradients", outputGradients.length)
-    println("outputGradients", outputGradients.head)
-    println("outputGradients", outputGradients(1))
-    println("outputGradients", outputGradients(2))
-    println("op.outputs", op.output.head)
-    println("op.outputs", op.output(1))
-    println("op.inputs", op.input.length)
-    println("op.outputs", op.output.length)
-    //outputGradients: dfdBarycentriCoordinates: Output, df_didsIgnored: Output, df_dzIgnored: Output
-    // TODO: Find out how Op registration works in TF Scala 0.4
+    /*
+      The outputGradients Seq contains three entries: a gradient for each output
+        (barycentric coordinates, triangle ids, z buffer)
+      Only the gradient for the barycentric coordinates is used, therefore it doesn't matter that the gradient for the
+      triangle ids is null.
+     */
 
     val inputs: Seq[Output[Any]] = Seq(op.input.head.toFloat, op.input(1).toInt, op.output.head.toFloat, op.output(1).toInt, outputGradients.head)
     val outGrad = Op.Builder[Seq[Output[Any]], Seq[Output[Float]]](opType = "RasterizeTrianglesGrad", "rasterizeTrianglesGrad",
@@ -107,10 +102,9 @@ object Rasterizer {
 
     println("outGrad", outGrad.output.length, outGrad)
     /*
-     This old placeholder for the triangle id gradient could not possibly have been correct, because of the shape, so
-     why did it work? Because the shape didn't need to be defined?
+     The input triangles must be given a gradient. Since these are not supposed to change and don't have any meaningful
+     gradient, we assign it a zero gradient.
     */
-//    Seq(outGrad.output.head, tf.identity(outGrad.output.head)) //zBuffer gradients missing but we need to supply something!
     Seq(outGrad.output.head.toFloat, tf.zeros[Float](op.input(1).shape))
   }
 }

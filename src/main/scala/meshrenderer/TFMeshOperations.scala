@@ -63,7 +63,7 @@ object TFMeshOperations {
   def trianglesForPoint(data: IndexedSeq[(PointId, IndexedSeq[TriangleId])]): Tensor[Int] = {
     val sorted = data.toIndexedSeq.sortBy(_._1.id)
     val maxNeighbouringTriangles = 8
-    val listOfTensors = sorted.map { case (ptid, triangles) =>
+    val listOfTensors = sorted.map { case (_, triangles) =>
       val space = Array.fill(maxNeighbouringTriangles)(-1)
       var i = 0
       for (t <- triangles) {
@@ -82,7 +82,7 @@ object TFMeshOperations {
     }
     val sorted = data.toIndexedSeq.sortBy(_._1.id)
     val maxNeighs = 8
-    val listOfTensors = sorted.map { case (ptid, neighs) =>
+    val listOfTensors = sorted.map { case (_, neighs) =>
       val space = Array.fill(maxNeighs)(-1)
       var i = 0
       for (n <- neighs) {
