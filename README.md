@@ -1,6 +1,6 @@
 # Differentiable Renderer in Scala with Tensorflow
 
-Landmark calculation utilities can be used out-of-the-box, for rendering support, please follow the build guide below.
+Landmark calculation utilities can be used out-of-the-box, for rendering support please follow the build guide below.
 
 ## Build:
 
