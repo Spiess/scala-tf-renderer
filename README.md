@@ -1,11 +1,38 @@
-# Inverse Renderer in Scala with Tensorflow
+# Differentiable Renderer in Scala with Tensorflow
 
-## Build
+Landmark calculation utilities can be used out-of-the-box, for rendering support, please follow the build guide below.
+
+## Build:
+
+To be able to use the renderer you will need a compiled `rasterized_triangles_kernel.so` and (as of TensorFlow Scala
+version 0.4.1) a slightly modified and compiled version of TensorFlow Scala.
+
+### TensorFlow Scala:
+
+Compile your desired version of [TensorFlow](https://github.com/tensorflow/tensorflow) (1.12 or newer) according to the
+[TensorFlow Scala instructions](http://platanios.org/tensorflow_scala/installation.html) to obtain `libtensorflow.so`
+and `libtensorflow_framework.so`. Add these two files to a directory on your `LD_LIBRARY_PATH`.
+
+Clone the [TensorFlow Scala](https://github.com/eaplatanios/tensorflow_scala) repository, change line 1501 in
+`org/platanios/tensorflow/api/ops/Op.scala` from
+```
+outputs.map(_.toOutput.asInstanceOf[Output[T]])
+```
+to
+```
+outputs.map(o => if (o == null) null else o.toOutput.asInstanceOf[Output[T]])
+```
+and publish it to your local ivy cache with `sbt publishLocal`. (You may have to adjust the TensorFlow Scala dependency
+version in `build.sbt`)
+
+### Rasterizer Kernel:
 
 Uses the `rasterize_triangles_kernel.so` from [tf_mesh_renderer](https://github.com/google/tf_mesh_renderer)
 (commit a6403fbb36a71443ecb822e435e5724550d2b52b or earlier). The kernel must be compiled using the version of
-TensorFlow used by the TensorFlow Scala binary used (`tf-nightly-gpu==1.13.0.dev20181121` for TensorFlow Scala GPU
+TensorFlow used by the TensorFlow Scala binary (`tf-nightly-gpu==1.13.0.dev20181121` for TensorFlow Scala GPU
 0.4.1).
+
+#### Shape functions:
 
 If TensorFlow Scala claims to require a shape function for the `RasterizeTriangles` operation, you may have to add the
 following code snippet to the operation registration in `rasterize_triangles_op.cc` before compiling the
