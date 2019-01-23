@@ -41,8 +41,8 @@ object TFMoMo {
 case class TFMoMoBasicParameterModel(model: TFMoMoBasic, mean: TFMesh, initPose: TFPoseTensor, initCamera: TFCameraTensor, initLight: Tensor[Float])
   extends OffsetFromInitializationModel(mean.pts, mean.colors, initPose, initCamera, initLight) {
 
-  override lazy val ptsVar: api.tf.Variable[Float] = tf.variable[Float]("shapeCoefficients", Shape(model.shape.shape(1),1), ZerosInitializer)
-  override lazy val colorsVar: api.tf.Variable[Float] = tf.variable[Float]("colorCoefficients", Shape(model.color.shape(1),1), ZerosInitializer)
+  override lazy val ptsVarVariable: api.tf.Variable[Float] = tf.variable[Float]("shapeCoefficients", Shape(model.shape.shape(1),1), ZerosInitializer)
+  override lazy val colorsVarVariable: api.tf.Variable[Float] = tf.variable[Float]("colorCoefficients", Shape(model.color.shape(1),1), ZerosInitializer)
 
   println("ptsVar", ptsVar.shape)
   println("model.shape", model.shape)
@@ -57,8 +57,8 @@ case class TFMoMoBasicParameterModel(model: TFMoMoBasic, mean: TFMesh, initPose:
 case class TFMoMoExpressParameterModel(model: TFMoMoExpress, mean: TFMesh, initPose: TFPoseTensor, initCamera: TFCameraTensor, initLight: Tensor[Float])
   extends OffsetFromInitializationModel(mean.pts, mean.colors, initPose, initCamera, initLight) {
 
-  override lazy val ptsVar: api.tf.Variable[Float] = tf.variable[Float]("shapeCoefficients", Shape(model.shape.shape(1) + model.expression.shape(1),1), ZerosInitializer)
-  override lazy val colorsVar: api.tf.Variable[Float] = tf.variable[Float]("colorCoefficients", Shape(model.color.shape(1),1), ZerosInitializer)
+  override lazy val ptsVarVariable: api.tf.Variable[Float] = tf.variable[Float]("shapeCoefficients", Shape(model.shape.shape(1) + model.expression.shape(1),1), ZerosInitializer)
+  override lazy val colorsVarVariable: api.tf.Variable[Float] = tf.variable[Float]("colorCoefficients", Shape(model.color.shape(1),1), ZerosInitializer)
 
   println("ptsVar", ptsVar.shape)
   println("model.shape", model.shape)

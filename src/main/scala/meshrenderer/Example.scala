@@ -353,9 +353,7 @@ object Example {
     val shapePrior = {
       val n = variableModel.ptsVar.shape(0)
       val s = tf.cumsum(tf.square(variableModel.ptsVar), 0)
-      val part1 = 0.5f * s(n - 1)
-      var part2 = Tensor(-0.5f * n * math.log(2 * math.Pi)).toFloat
-      part2 - part1
+      (-0.5f * n * math.log(2 * math.Pi)).toFloat - (0.5f * s(n - 1))
     }
 
 
@@ -381,19 +379,44 @@ object Example {
       Float
     )
 
+    // Test gradient calculation
+    {
+      val ptsVar: Output[Float] = variableModel.ptsVar
+      val xs: Seq[Output[Float]] = Seq(ptsVar)
+      val xsSquared = ptsVar.square
+      val xsCS = tf.cumsum(xsSquared, 0)
+      val xsSlice = 0.5f * xsCS(-1)
+      val xsFinal = (-0.5f * xs.head.shape(0) * math.log(2 * math.Pi)).toFloat - xsSlice
+
+      val g1 = Gradients.gradients(Seq(xsSquared), xs, Float)
+      val g2 = Gradients.gradients(Seq(xsCS), xs, Float)
+      val g3 = Gradients.gradients(Seq(xsSlice), xs, Float)
+      val g4 = Gradients.gradients(Seq(xsFinal), xs, Float)
+      val g5 = Gradients.gradients(Seq(shapePrior), xs, Float)
+      println(s"Test gradients: $g1")
+      println(s"Test gradients: $g2")
+      println(s"Test gradients: $g3")
+      println(s"Test gradients: $g4")
+      println(s"Test gradients: $g5")
+    }
+
     println(s"val grad: $grad")
+
+    println()
 
     val optimizer = tf.train.AMSGrad(0.1f, name = "adal")
     // TODO: applyGradients requires Variable[Any] here for some reason, bug maybe?
     val gradients: Seq[(OutputLike[Float], api.tf.Variable[Any])] = Seq(
-      (grad(0), variableModel.ptsVar),
-      (grad(1), variableModel.colorsVar),
-      (grad(2), variableModel.illumVar),
-      (grad(3), variableModel.poseRotVar)
+      (grad(0), variableModel.ptsVarVariable),
+      (grad(1), variableModel.colorsVarVariable),
+      (grad(2), variableModel.illumVarVariable),
+      (grad(3), variableModel.poseRotVarVariable)
     )
     val optFn = optimizer.applyGradients(
       gradients
     )
+
+//    val optFn = optimizer.minimize(-loss)
 
 
     val session = Session()
@@ -425,9 +448,9 @@ object Example {
         val n = finalPts.shape(1)
 
         for (i <- 0 until n) yield {
-          val x = finalPts(0, i).entriesIterator.toIndexedSeq(0).asInstanceOf[Float].toDouble
-          val y = finalPts(1, i).entriesIterator.toIndexedSeq(0).asInstanceOf[Float].toDouble
-          val z = finalPts(2, i).entriesIterator.toIndexedSeq(0).asInstanceOf[Float].toDouble
+          val x = finalPts(0, i).entriesIterator.toIndexedSeq(0).toDouble
+          val y = finalPts(1, i).entriesIterator.toIndexedSeq(0).toDouble
+          val z = finalPts(2, i).entriesIterator.toIndexedSeq(0).toDouble
           Point(x, y, z)
         }
       }

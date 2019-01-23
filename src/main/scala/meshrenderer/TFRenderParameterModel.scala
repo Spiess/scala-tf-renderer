@@ -27,10 +27,14 @@ class OffsetFromInitializationModel(initPts: Tensor[Float], initColors: Tensor[F
   val initialPoseTranslation: Output[Float] = tf.placeholder[Float](initPose.translation.shape, "poseTranslation")
   val initialCamera: Output[Float] = tf.placeholder[Float](initCamera.parameters.shape, "camera")
 
-  lazy val ptsVar: api.tf.Variable[Float] = tf.variable[Float]("pointsOffset", initPts.shape, tf.ZerosInitializer)
-  lazy val colorsVar: api.tf.Variable[Float] = tf.variable[Float]("colorsOffset", initColors.shape, tf.ZerosInitializer)
-  lazy val illumVar: api.tf.Variable[Float] = tf.variable[Float]("illuminationOffset", initialIllumination.shape, tf.ZerosInitializer)
-  lazy val poseRotVar: api.tf.Variable[Float] = tf.variable[Float]("poseRotationOffset", initialPoseRotation.shape, tf.ZerosInitializer)
+  lazy val ptsVarVariable: api.tf.Variable[Float] = tf.variable[Float]("pointsOffset", initPts.shape, tf.ZerosInitializer)
+  lazy val ptsVar: Output[Float] = ptsVarVariable
+  lazy val colorsVarVariable: api.tf.Variable[Float] = tf.variable[Float]("colorsOffset", initColors.shape, tf.ZerosInitializer)
+  lazy val colorsVar: Output[Float] = colorsVarVariable
+  lazy val illumVarVariable: api.tf.Variable[Float] = tf.variable[Float]("illuminationOffset", initialIllumination.shape, tf.ZerosInitializer)
+  lazy val illumVar: Output[Float] = illumVarVariable
+  lazy val poseRotVarVariable: api.tf.Variable[Float] = tf.variable[Float]("poseRotationOffset", initialPoseRotation.shape, tf.ZerosInitializer)
+  lazy val poseRotVar: Output[Float] = poseRotVarVariable
   lazy val poseTransVar: api.tf.Variable[Float] = tf.variable[Float]("poseTranslationOffset", initialPoseTranslation.shape, tf.ZerosInitializer)
   lazy val cameraVar: api.tf.Variable[Float] = tf.variable[Float]("cameraOffset", initialCamera.shape, tf.ZerosInitializer)
 

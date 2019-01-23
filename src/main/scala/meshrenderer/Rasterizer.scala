@@ -75,7 +75,7 @@ object Rasterizer {
     })
      */
 
-    RasterizationOutput(outs.outputsSeq.head.toFloat, outs.outputsSeq(1).toInt, outs.outputsSeq(2).toFloat)
+    RasterizationOutput(outs.output.head, outs.output(1).toInt, outs.output(2))
   }
 
   def rasterizeTrianglesGrad(op: Op[Seq[Output[Any]], Seq[Output[Float]]], outputGradients: Seq[Output[Float]]): Seq[Output[Float]] = {
@@ -83,19 +83,34 @@ object Rasterizer {
     println("outputGradients", outputGradients.head)
     println("outputGradients", outputGradients(1))
     println("outputGradients", outputGradients(2))
-    println("op.outputs", op.outputsSeq.head)
-    println("op.outputs", op.outputsSeq(1))
-    println("op.inputs", op.inputsSeq.length)
-    println("op.inputs", op.inputsSeq.length)
+    println("op.outputs", op.output.head)
+    println("op.outputs", op.output(1))
+    println("op.inputs", op.input.length)
+    println("op.outputs", op.output.length)
     //outputGradients: dfdBarycentriCoordinates: Output, df_didsIgnored: Output, df_dzIgnored: Output
     // TODO: Find out how Op registration works in TF Scala 0.4
-    val outGrad = Op.Builder[Seq[Output[Float]], Seq[Output[Float]]](opType = "RasterizeTrianglesGrad", "rasterizeTrianglesGrad",
-      input = Seq(op.inputsSeq.head.toFloat, op.inputsSeq(1).toFloat, op.outputsSeq.head.toFloat, op.outputsSeq(1).toFloat, outputGradients.head))
+
+    val inputs: Seq[Output[Any]] = Seq(op.input.head.toFloat, op.input(1).toInt, op.output.head.toFloat, op.output(1).toInt, outputGradients.head)
+    val outGrad = Op.Builder[Seq[Output[Any]], Seq[Output[Float]]](opType = "RasterizeTrianglesGrad", "rasterizeTrianglesGrad",
+      input = inputs, addAsIndividualInputs = true)
       .setAttribute("image_width", op.longAttribute("image_width"))
       .setAttribute("image_height", op.longAttribute("image_height"))
       .build()
 
-    println("outGrad", outGrad.outputsSeq.length, outGrad)
-    Seq(outGrad.outputsSeq.head.toFloat, tf.identity(outGrad.outputsSeq.head.toFloat)) //zBuffer gradients missing but we need to supply something!
+    /*
+    In case the Op.Builder quits with the error that it's missing a shape function recompile rasterizer kernel with:
+    .SetShapeFn([](::tensorflow::shape_inference::InferenceContext* c) {
+      c->set_output(0, c->input(0));
+      return Status::OK();
+    })
+     */
+
+    println("outGrad", outGrad.output.length, outGrad)
+    /*
+     This old placeholder for the triangle id gradient could not possibly have been correct, because of the shape, so
+     why did it work? Because the shape didn't need to be defined?
+    */
+//    Seq(outGrad.output.head, tf.identity(outGrad.output.head)) //zBuffer gradients missing but we need to supply something!
+    Seq(outGrad.output.head.toFloat, tf.zeros[Float](op.input(1).shape))
   }
 }
