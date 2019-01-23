@@ -14,7 +14,7 @@ import scala.collection.immutable.Seq
   */
 object TFMeshOperations {
 
-  def triangleNormals(vtx: Output, triangles: Output) = {
+  def triangleNormals(vtx: Output[Float], triangles: Output[Int]): Output[Float] = {
     val vtxsPerTriangle = tf.gather(vtx, triangles)
 
     val pt1 = vtxsPerTriangle(::, 0)
@@ -31,35 +31,39 @@ object TFMeshOperations {
     tf.l2Normalize(cross, axes=Seq(1))
   }
 
-  def vertexNormals(cellNormals: Output, triangleIdsForPoint: Output) = {
+  def vertexNormals(cellNormals: Output[Float], triangleIdsForPoint: Output[Int]): Output[Float] = {
     println("cellNromals", cellNormals)
     println("triangleIdsForPoint", triangleIdsForPoint)
-    val normalsPerVertex = tf.gather(cellNormals, triangleIdsForPoint)
+    tf.createWith(nameScope="vertexNormals") {
+      val normalsPerVertex = tf.gather(cellNormals, triangleIdsForPoint)
 
-    val validEntries = triangleIdsForPoint > -1f
+      val validEntries = triangleIdsForPoint > -1
 
-    val sumValidEntries = tf.countNonZero(validEntries, axes=Seq(1))
+      val sumValidEntries = tf.countNonZero(validEntries.toInt, axes = Seq(1))
 
-    println("validEntries", validEntries)
-    println("sumValidEntries", sumValidEntries)
+      println("validEntries", validEntries)
+      println("sumValidEntries", sumValidEntries)
 
-    println("normalsPerVertex", normalsPerVertex)
-    tf.l2Normalize(
-      tf.sum(normalsPerVertex*tf.tile(tf.expandDims(validEntries, 2), Shape(1,1,3)), axes = Seq(1)),
-      axes= Seq(1)
-    )
+      println("normalsPerVertex", normalsPerVertex)
+      val temp0 = tf.expandDims(validEntries, 2)
+      val temp1 = tf.tile(temp0, Shape(1, 1, 3))
+      tf.l2Normalize(
+        tf.sum(normalsPerVertex * temp1.toFloat, axes = Seq(1)),
+        axes = Seq(1)
+      )
+    }
   }
 
 
-  def vertexNormals(vtx: Output, triangles: Output,  triangleIdsForPoint: Output): Output = {
+  def vertexNormals(vtx: Output[Float], triangles: Output[Int],  triangleIdsForPoint: Output[Int]): Output[Float] = {
     val cellNormals = triangleNormals(vtx, triangles)
     vertexNormals(cellNormals, triangleIdsForPoint)
   }
 
-  def trianglesForPoint(data: IndexedSeq[(PointId, IndexedSeq[TriangleId])]) = {
+  def trianglesForPoint(data: IndexedSeq[(PointId, IndexedSeq[TriangleId])]): Tensor[Int] = {
     val sorted = data.toIndexedSeq.sortBy(_._1.id)
     val maxNeighbouringTriangles = 8
-    val listOfTensors = sorted.map { case (ptid, triangles) =>
+    val listOfTensors = sorted.map { case (_, triangles) =>
       val space = Array.fill(maxNeighbouringTriangles)(-1)
       var i = 0
       for (t <- triangles) {
@@ -71,14 +75,14 @@ object TFMeshOperations {
     Tensor(listOfTensors).reshape(Shape(data.length, maxNeighbouringTriangles))
   }
 
-  def adjacentPoints(mesh: TriangleMesh3D) = {
+  def adjacentPoints(mesh: TriangleMesh3D): Tensor[Int] = {
     val data = mesh.triangulation.pointIds.map { ptId =>
       val adj = mesh.triangulation.adjacentPointsForPoint(ptId)
       (ptId, adj)
     }
     val sorted = data.toIndexedSeq.sortBy(_._1.id)
     val maxNeighs = 8
-    val listOfTensors = sorted.map { case (ptid, neighs) =>
+    val listOfTensors = sorted.map { case (_, neighs) =>
       val space = Array.fill(maxNeighs)(-1)
       var i = 0
       for (n <- neighs) {
@@ -92,7 +96,7 @@ object TFMeshOperations {
 
   /** adjacentPoints: #points X maximum possible adjacent points
     * point data:     #points X data dim*/
-  def vertexToNeighbourDistance(adjacentPoints: Output, pointData: Output): Output = {
+  def vertexToNeighbourDistance(adjacentPoints: Output[Int], pointData: Output[Int]): Output[Int] = {
     println("adjacentPoints", adjacentPoints)
     println("pointData", pointData)
 
@@ -103,13 +107,13 @@ object TFMeshOperations {
     val neighsToVertex = tf.subtract(vertexTiled, neighValuesPerVertex)
     println("neighsToVertex", neighsToVertex)
 
-    val validEntries = adjacentPoints > -1f
+    val validEntries = adjacentPoints > -1
     println("validEntries", validEntries)
     //val sumValidEntries = tf.countNonZero(validEntries, axes=Seq(1))
     val validEntriesTiled = tf.tile(tf.expandDims(validEntries, 2), Seq(1, 1, pointData.shape(1)))
     println("validEntriesTiled", validEntriesTiled)
 
-    val validDifferences = neighsToVertex * validEntriesTiled
+    val validDifferences = neighsToVertex * validEntriesTiled.toInt
     println("validDifferences", validDifferences)
     val res = tf.sum(tf.abs(validDifferences))
     println("res", res)
@@ -139,9 +143,9 @@ object TFMeshOperations {
     println("vtxNormals", vtxNormals)
 
     val session = Session()
-    val res = session.run(fetches = Seq(vtxNormals))
+    val res = session.run(fetches = vtxNormals)
 
-    val tfVtx = res(0).toTensor
+    val tfVtx = res(0)
     println(tfVtx(100,::).summarize())
 
     println(mesh.shape.vertexNormals.pointData(100))

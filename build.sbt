@@ -1,5 +1,6 @@
 organization  := "ch.unibas.cs.gravis"
 name := """scala-tf-renderer"""
+version := "0.1-SNAPSHOT"
 
 scalaVersion  := "2.12.2"
 scalacOptions := Seq("-unchecked", "-deprecation", "-encoding", "utf8")
@@ -13,8 +14,8 @@ resolvers += Opts.resolver.sonatypeSnapshots
 credentials +=Credentials(Path.userHome /".ivy2" /".credentials-statismo-private")
 
 libraryDependencies  ++= Seq(
-  "org.platanios" %% "tensorflow" % "0.2.0",
-    "org.platanios" %% "tensorflow" % "0.2.0" classifier "linux-gpu-x86_64",
+//  "org.platanios" %% "tensorflow" % "0.4.1",
+  "org.platanios" %% "tensorflow" % "0.4.1" classifier "linux-gpu-x86_64",
   "org.bytedeco.javacpp-presets" % "opencv-platform" % "3.4.1-1.4.1",
   "org.bytedeco.javacpp-presets" % "opencv" % "3.4.1-1.4.1" classifier "linux-x86_64",
 //  "org.platanios" %% "tensorflow-data" % "0.1.1"

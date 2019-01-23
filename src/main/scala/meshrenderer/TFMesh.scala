@@ -10,17 +10,17 @@ import scalismo.mesh.{SurfacePointProperty, TriangleList}
   */
 
 case class TFMesh(mesh: VertexColorMesh3D) {
-  val trianglesForPointData = {
+  val trianglesForPointData: Tensor[Int] = {
     val triForPoint = mesh.shape.pointSet.pointIds.toIndexedSeq.map { id =>
       (id, mesh.shape.triangulation.adjacentTrianglesForPoint(id))
     }
     TFMeshOperations.trianglesForPoint(triForPoint)
   }
-  val adjacentPoints = TFMeshOperations.adjacentPoints(mesh.shape)
-  val triangles = TFMesh.triangulationAsTensor(mesh.shape.triangulation)
-  val pts = TFConversions.pointsToTensor(mesh.shape.position.pointData)//.transpose()
-  val colors = TFConversions.pointsToTensor(mesh.color.pointData.map(_.toRGB)).transpose()
-  val normals = TFConversions.pointsToTensor(mesh.shape.vertexNormals.pointData).transpose()
+  val adjacentPoints: Tensor[Int] = TFMeshOperations.adjacentPoints(mesh.shape)
+  val triangles: Tensor[Int] = TFMesh.triangulationAsTensor(mesh.shape.triangulation)
+  val pts: Tensor[Float] = TFConversions.pointsToTensor(mesh.shape.position.pointData)//.transpose()
+  val colors: Tensor[Float] = TFConversions.pointsToTensor(mesh.color.pointData.map(_.toRGB)).transpose()
+  val normals: Tensor[Float] = TFConversions.pointsToTensor(mesh.shape.vertexNormals.pointData).transpose()
 }
 
 object TFMesh {
@@ -29,10 +29,10 @@ object TFMesh {
     TFMesh(VertexColorMesh3D(mesh.shape, vertexColor))
   }
 
-  def triangulationAsTensor(triangulation: TriangleList): Tensor = {
+  def triangulationAsTensor(triangulation: TriangleList): Tensor[Int] = {
     val triangles = triangulation.triangles
     val data = Array.fill(triangles.length*3)(-1)
-    for(i <- 0 until triangles.length) {
+    for(i <- triangles.indices) {
       val triangle = triangles(i)
       data(i*3) = triangle.ptId1.id
       data(i*3+1) = triangle.ptId2.id
