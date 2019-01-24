@@ -54,6 +54,7 @@ object TFConversions {
     Tensor.fromBuffer[Float](Shape(points.length, 3), bufferCapacity, buffer)
   }
 
+  // TODO: Change image conversion from (height, width, dimensions) to (width, height, dimensions)
   def image3dToTensor(image: PixelImage[RGB]): Tensor[Float] = {
     val bufferCapacity = image.height * image.width * 3 * 4
     val buffer = ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder())
@@ -79,27 +80,15 @@ object TFConversions {
     sequenceImage3dToPixelImage(data, domain)
   }
 
+  /**
+    * Converts a tensor to a pixel image.
+    *
+    * @param dataRaw Image value tensor with shape (width, height, 3)
+    */
   def oneToOneTensorImage3dToPixelImage(dataRaw: Tensor[Float]): PixelImage[RGB] = {
-    //require( == domain.width &&  == domain.height)
-    val w = dataRaw.shape(1)
-    val h = dataRaw.shape(0)
-    val buffer = ImageBuffer.makeInitializedBuffer(w, h)(RGB.Black)
-    var r = 0
-    while (r < h) {
-      var c = 0
-      while (c < w) {
-        buffer(c, r) = RGB(
-          dataRaw(r, c, 0).entriesIterator.toIndexedSeq(0)
-          ,
-          dataRaw(r, c, 1).entriesIterator.toIndexedSeq(0)
-          ,
-          dataRaw(r, c, 2).entriesIterator.toIndexedSeq(0)
-        )
-        c += 1
-      }
-      r += 1
-    }
-    buffer.toImage
+    val entries = dataRaw.entriesIterator.toArray
+    val data = (0 until dataRaw.size.toInt by 3).map(i => RGB(entries(i), entries(i + 1), entries(i + 2)))
+    PixelImage(PixelImageDomain(dataRaw.shape(0), dataRaw.shape(1)), data)
   }
 
   def tensorImage3dIntToPixelImage(dataRaw: Tensor[Int], domain: PixelImageDomain): PixelImage[RGB] = {
