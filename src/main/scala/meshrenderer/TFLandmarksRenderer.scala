@@ -282,7 +282,11 @@ object TFLandmarksRenderer {
 
     val shapeStd = TFMoMoConversions.toTensor(momo.shape.variance.map(math.sqrt)).transpose()
 
-    val meanPoints = TFConversions.pointsToTensor(landmarkPointIds.collect(momo.mean.shape.position.pointData))
+    val meanPoints = {
+      val meanPointData = momo.mean.shape.position.pointData
+      val collectedMeanPointData = if (landmarkPointIds == null) meanPointData else landmarkPointIds.collect(meanPointData)
+      TFConversions.pointsToTensor(collectedMeanPointData)
+    }
 
     TFLandmarksRenderer(shapeBasis, shapeStd, meanPoints)
   }
@@ -310,7 +314,11 @@ object TFLandmarksRenderer {
 
     val shapeStd = TFMoMoConversions.toTensor(momo.shape.variance.map(math.sqrt))
 
-    val meanPoints = TFConversions.pointsToTensorNotTransposed(landmarkPointIds.collect(momo.mean.shape.position.pointData))
+    val meanPoints = {
+      val meanPointData = momo.mean.shape.position.pointData
+      val collectedMeanPointData = if (landmarkPointIds == null) meanPointData else landmarkPointIds.collect(meanPointData)
+      TFConversions.pointsToTensorNotTransposed(collectedMeanPointData)
+    }
 
     TFLandmarksRenderer(shapeBasis, shapeStd, meanPoints)
   }
@@ -352,7 +360,11 @@ object TFLandmarksRenderer {
       (results.head, results.last)
     })
 
-    val meanPoints = TFConversions.pointsToTensor(landmarkPointIds.collect(momo.mean.shape.position.pointData))
+    val meanPoints = {
+      val meanPointData = momo.mean.shape.position.pointData
+      val collectedMeanPointData = if (landmarkPointIds == null) meanPointData else landmarkPointIds.collect(meanPointData)
+      TFConversions.pointsToTensor(collectedMeanPointData)
+    }
 
     TFLandmarksRenderer(combinedBasis, combinedStd, meanPoints)
   }
@@ -390,7 +402,11 @@ object TFLandmarksRenderer {
       (results.head, results.last)
     })
 
-    val meanPoints = TFConversions.pointsToTensorNotTransposed(landmarkPointIds.collect(momo.mean.shape.position.pointData))
+    val meanPoints = {
+      val meanPointData = momo.mean.shape.position.pointData
+      val collectedMeanPointData = if (landmarkPointIds == null) meanPointData else landmarkPointIds.collect(meanPointData)
+      TFConversions.pointsToTensorNotTransposed(collectedMeanPointData)
+    }
 
     TFLandmarksRenderer(combinedBasis, combinedStd, meanPoints)
   }
