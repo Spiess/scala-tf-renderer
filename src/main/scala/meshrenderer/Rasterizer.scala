@@ -15,6 +15,31 @@ object Rasterizer {
 
   /**
     * Implements a rasterization kernel for rendering mesh geometry.
+    * <br>
+    * <br>
+    * Operation outputs:
+    * <br>
+    * <br>
+    * barycentric_coordinates: 3-D tensor with shape [image_height, image_width, 3]
+    *                     containing the rendered barycentric coordinate triplet per pixel, before
+    *                     perspective correction. The triplet is the zero vector if the pixel is outside
+    *                     the mesh boundary. For valid pixels, the ordering of the coordinates
+    *                     corresponds to the ordering in triangles.
+    * <br>
+    * <br>
+    * triangle_ids: 2-D tensor with shape [image_height, image_width]. Contains the
+    *                     triangle id value for each pixel in the output image. For pixels within the
+    *                     mesh, this is the integer value in the range [0, num_vertices] from triangles.
+    *                     For vertices outside the mesh this is 0; 0 can either indicate belonging to
+    *                     triangle 0, or being outside the mesh. This ensures all returned triangle ids
+    *                     will validly index into the vertex array, enabling the use of tf.gather with
+    *                     indices from this tensor. The barycentric coordinates can be used to determine
+    *                     pixel validity instead.
+    * <br>
+    * <br>
+    * z_buffer: 2-D tensor with shape [image_height, image_width]. Contains the Z
+    *                     coordinate in vae.Normalized Device Coordinates for each pixel occupied by a
+    *                     triangle.
     *
     * @param vertices     2-D tensor with shape [vertex_count, 3]. The 3-D positions of the mesh vertices in Normalized
     *                     Device Coordinates.
@@ -24,23 +49,6 @@ object Rasterizer {
     *                     the viewer.
     * @param image_width  positive int attribute specifying the width of the output image.
     * @param image_height positive int attribute specifying the height of the output image.
-    *
-    * barycentric_coordinates: 3-D tensor with shape [image_height, image_width, 3]
-    *                     containing the rendered barycentric coordinate triplet per pixel, before
-    *                     perspective correction. The triplet is the zero vector if the pixel is outside
-    *                     the mesh boundary. For valid pixels, the ordering of the coordinates
-    *                     corresponds to the ordering in triangles.
-    * triangle_ids: 2-D tensor with shape [image_height, image_width]. Contains the
-    *                     triangle id value for each pixel in the output image. For pixels within the
-    *                     mesh, this is the integer value in the range [0, num_vertices] from triangles.
-    *                     For vertices outside the mesh this is 0; 0 can either indicate belonging to
-    *                     triangle 0, or being outside the mesh. This ensures all returned triangle ids
-    *                     will validly index into the vertex array, enabling the use of tf.gather with
-    *                     indices from this tensor. The barycentric coordinates can be used to determine
-    *                     pixel validity instead.
-    * z_buffer: 2-D tensor with shape [image_height, image_width]. Contains the Z
-    *                     coordinate in vae.Normalized Device Coordinates for each pixel occupied by a
-    *                     triangle.
     */
   def rasterize_triangles(vertices: Output[Float],
                           triangles: Output[Int],
