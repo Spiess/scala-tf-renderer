@@ -6,11 +6,11 @@ import scalismo.faces.momo.{MoMoBasic, MoMoExpress}
 /**
   * Class for determining landmark positions in pixel coordinates on an image.
   *
-  * @param basisMatrix  the basis matrix of the chosen model
-  * @param parameterStd the parameter standard deviations of the chosen model
-  * @param meanMesh     the mean mesh points of the used morphable model
+  * @param shapeBasisMatrix  the shape basis matrix of the chosen model
+  * @param shapeParameterStd the shape parameter standard deviations of the chosen model
+  * @param meanMesh          the mean mesh points of the used morphable model
   */
-case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[Float], meanMesh: Tensor[Float]) {
+case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterStd: Tensor[Float], meanMesh: Tensor[Float]) {
 
   /**
     * Calculates the point positions for the model instance defined by the given parameters. Only returns the points
@@ -37,7 +37,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     */
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def getInstance(parameters: Output[Float]): Output[Float] = {
-    val offsets = tf.matmul(basisMatrix, parameters * parameterStd).reshape(Shape(-1, 3)).transpose()
+    val offsets = tf.matmul(shapeBasisMatrix, parameters * shapeParameterStd).reshape(Shape(-1, 3)).transpose()
     meanMesh + offsets
   }
 
@@ -64,7 +64,7 @@ case class TFLandmarksRenderer(basisMatrix: Tensor[Float], parameterStd: Tensor[
     * @return [[Output]] of mesh points with shape (batchSize, numPoints, pointDimensions [x, y, z])
     */
   def batchGetInstance(parameters: Output[Float]): Output[Float] = {
-    val offsets = tf.matmul(parameters * parameterStd, basisMatrix).reshape(Shape(parameters.shape(0), basisMatrix.shape(1) / 3, 3))
+    val offsets = tf.matmul(parameters * shapeParameterStd, shapeBasisMatrix).reshape(Shape(parameters.shape(0), shapeBasisMatrix.shape(1) / 3, 3))
     meanMesh + offsets
   }
 

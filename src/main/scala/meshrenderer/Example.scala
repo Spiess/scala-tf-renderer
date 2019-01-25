@@ -25,9 +25,9 @@ object Example {
 
   def main(args: Array[String]): Unit = {
 
-    val runOptimizationExample = true
-    val runLandmarkTest = true
     val runRenderTest = true
+    val runLandmarkTest = false
+    val runOptimizationExample = false
 
     val model = time("Initializing and loading model",
       {
@@ -75,7 +75,7 @@ object Example {
     * Method to test rendering of parameters using TensorFlow and the differentiable rasterizer.
     */
   def renderTest(model: MoMo): Unit = {
-    implicit val rand: Random = Random(-68)
+    implicit val rand: Random = Random(160)
 
     // Get expression model
     val expressionModel = model.expressionModel.get
@@ -86,16 +86,16 @@ object Example {
       val default = RenderParameter.default.withMoMo(MoMoInstance.fromCoefficients(coefficients, new File("../face-autoencoder/model2017-1_bfm_nomouth.h5").toURI))
 
       default.withPose(Pose(scaling = default.pose.scaling, translation = default.pose.translation, rand.rng.scalaRandom.nextGaussian() * 0.1, rand.rng.scalaRandom.nextGaussian() * 0.5, rand.rng.scalaRandom.nextGaussian() * 0.3))
-        .withEnvironmentMap(default.environmentMap) // TODO: Test randomized environment map
+        .withEnvironmentMap(default.environmentMap.copy(coefficients = default.environmentMap.coefficients.map(_.map(_ + rand.rng.scalaRandom.nextGaussian() * 0.2)))) // Randomize environment map
     }
 
-    // Convert parameters to tensors
-    val colorCoefficients = TFMoMoConversions.toTensor(coefficients.color)
-    val shapeExpressionParams = TFMoMoConversions.toTensor(DenseVector.vertcat(coefficients.shape, coefficients.expression))
+    // Convert parameters to outputs
+    val colorCoefficients: Output[Float] = TFMoMoConversions.toTensor(coefficients.color)
+    val shapeExpressionParams: Output[Float] = TFMoMoConversions.toTensor(DenseVector.vertcat(coefficients.shape, coefficients.expression))
 
-    val roll = parameters.pose.roll.toFloat
-    val pitch = parameters.pose.pitch.toFloat
-    val yaw = parameters.pose.yaw.toFloat
+    val roll: Output[Float] = parameters.pose.roll.toFloat
+    val pitch: Output[Float] = parameters.pose.pitch.toFloat
+    val yaw: Output[Float] = parameters.pose.yaw.toFloat
 
     val imageWidth = parameters.imageSize.width
     val imageHeight = parameters.imageSize.height
