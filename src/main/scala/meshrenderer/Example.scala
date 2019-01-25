@@ -26,8 +26,8 @@ object Example {
   def main(args: Array[String]): Unit = {
 
     val runRenderTest = true
-    val runLandmarkTest = true
-    val runOptimizationExample = true
+    val runLandmarkTest = false
+    val runOptimizationExample = false
 
     val model = time("Initializing and loading model",
       {
@@ -97,8 +97,30 @@ object Example {
     val pitch: Output[Float] = parameters.pose.pitch.toFloat
     val yaw: Output[Float] = parameters.pose.yaw.toFloat
 
+    val batchRoll = roll.expandDims(0)
+    val batchPitch = pitch.expandDims(0)
+    val batchYaw = yaw.expandDims(0)
+
     val imageWidth = parameters.imageSize.width
     val imageHeight = parameters.imageSize.height
+
+    val translation: Tensor[Float] = Tensor(parameters.pose.translation.x.toFloat, parameters.pose.translation.y.toFloat, parameters.pose.translation.z.toFloat)
+    val sensorSize = Tensor(parameters.camera.sensorSize.x.toFloat, parameters.camera.sensorSize.y.toFloat)
+    val principalPoint = Tensor(parameters.camera.principalPoint.x.toFloat, parameters.camera.principalPoint.y.toFloat)
+
+    val cameraNear = parameters.camera.near.toFloat
+    val cameraFar = parameters.camera.far.toFloat
+    val focalLength = parameters.camera.focalLength.toFloat
+
+    // Calculate illumination
+    val illumination = TFConversions.pointsToTensor(parameters.environmentMap.coefficients)
+
+    println(s"Illumination shape: ${illumination.shape}")
+
+    // TF image renderer
+    val imageRenderer = TFImageRenderer(model.expressionModel.get)
+
+    val rendererImage = imageRenderer.render(shapeExpressionParams, colorCoefficients, illumination, roll, pitch, yaw, imageWidth, imageHeight, translation, cameraNear, cameraFar, sensorSize, focalLength, principalPoint)
 
     // Calculate color
     val color = {
@@ -120,15 +142,6 @@ object Example {
 
       meanColor + colorOffset
     }
-
-    // Calculate illumination
-    val illumination = TFConversions.pointsToTensor(parameters.environmentMap.coefficients)
-
-    println(s"Illumination shape: ${illumination.shape}")
-
-    // TODO: Remove need for TFPose and TFCamera
-    val tfPose = TFPose(TFPose(parameters.pose))
-    val tfCamera = TFCamera(TFCamera(parameters.camera))
 
     // Create landmarksRenderer for calculating points
     val landmarksRenderer = TFLandmarksRenderer(model.expressionModel.get, null)
@@ -156,20 +169,28 @@ object Example {
     println(s"Normals shape: ${normals.shape}")
 
     // TODO: Make conforming to dimension ordering
-    val worldNormals: Output[Float] = Transformations.poseRotationTransform(normals.transpose(), pitch, yaw, roll).transpose()
+    val worldNormals: Output[Float] = Transformations.batchPoseRotationTransform(normals.expandDims(0), batchPitch, batchYaw, batchRoll).reshape(Shape(-1, 3))
 
     println(s"World normals shape: ${worldNormals.shape}")
 
     // TODO: Not batch optimized yet
-    val ndcPts: Output[Float] = Transformations.objectToNDC(points.transpose(), tfPose, tfCamera)
-    val ndcPtsTf: Output[Float] = Transformations.ndcToTFNdc(ndcPts, imageWidth, imageHeight).transpose()
+    val ndcPts = {
+      val batchTranslation = translation.expandDims(0)
+      val batchSensorSize = sensorSize.expandDims(0)
+      val batchPrincipalPoint = principalPoint.expandDims(0)
+
+      Transformations.batchPointsToNDC(batchPoints, batchRoll, batchPitch, batchYaw, batchTranslation, cameraNear,
+        cameraFar, batchSensorSize, focalLength, batchPrincipalPoint)
+        .reshape(Shape(-1, 3))
+    }
+    val ndcPtsTf: Output[Float] = Transformations.ndcToTFNdc(ndcPts, imageWidth, imageHeight)
 
     println(s"NDC shape: ${ndcPts.shape}")
     println(s"NDC TF shape: ${ndcPtsTf.shape}")
 
     // TODO: Not batch optimized yet
     val triangleIdsAndBCC: Rasterizer.RasterizationOutput = Rasterizer.rasterize_triangles(ndcPtsTf, triangles, imageWidth, imageHeight)
-    val vtxIdxPerPixel: Output[Int] = tf.gather(triangles, tf.reshape(triangleIdsAndBCC.triangleIds, Shape(-1)))
+    val vtxIdxPerPixel: Output[Int] = tf.gather(triangles, triangleIdsAndBCC.triangleIds.reshape(Shape(-1)))
 
     println(s"Triangle Ids and BCC shape: ${triangleIdsAndBCC.barycetricImage.shape}, ${triangleIdsAndBCC.triangleIds.shape}, ${triangleIdsAndBCC.zBufferImage.shape}")
     println(s"vtxIdxPerPixel shape: ${vtxIdxPerPixel.shape}")
@@ -194,10 +215,11 @@ object Example {
 
     // Check results
     using(Session())(session => {
-      val result = time("Rendering result with TensorFlow", {session.run(fetches = shShader)})
+      val result = time("Rendering result with TensorFlow", {session.run(fetches = Seq(shShader, rendererImage))})
 
-      val rendering = time("Converting result to Pixel Image", {TFConversions.oneToOneTensorImage3dToPixelImage(result.transpose(permutation = Tensor(1, 0, 2)))})
-      time("Writing TF Render to file", {PixelImageIO.write(rendering, new File("/tmp/renderTestRendering.png")).get})
+      val rendering = time("Converting results to Pixel Images", {result.map(r => TFConversions.oneToOneTensorImage3dToPixelImage(r.transpose(permutation = Tensor(1, 0, 2))))})
+      time("Writing TF Render to file", {PixelImageIO.write(rendering.head, new File("/tmp/renderTestRendering.png")).get})
+      PixelImageIO.write(rendering(1), new File("/tmp/renderTestRendererImage.png")).get
     })
 
     // Render with MoMoRenderer for comparison

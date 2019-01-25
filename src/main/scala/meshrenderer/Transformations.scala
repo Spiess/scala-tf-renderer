@@ -273,7 +273,8 @@ object Transformations {
   }
 
   /** normalized device coordinates of rasterizer are different than in the scalismo-faces renderer. */
-  def ndcToTFNdc(pts: Output[Float], width: Int, height: Int): Output[Float] = {
+  @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
+  def transposedNdcToTFNdc(pts: Output[Float], width: Int, height: Int): Output[Float] = {
     val px = pts(0, ::)
     val py = pts(1, ::)
     val pz = pts(2, ::)
@@ -282,6 +283,19 @@ object Transformations {
     val xoffset = 1f / width
     //tf.stack(Seq(-py+offset, px, pz), axis=1).transpose()
     tf.stack(Seq(px + xoffset, -py + yoffset, pz))
+  }
+
+  /**
+    * Converts normalized device coordinates from the space used in Scalismo to that used by the TensorFlow rasterizer.
+    *
+    * @param ndc normalized device coordinates in the Scalismo space of shape (numPoints, dimensions)
+    * @return normalized device coordinates in the TensorFlow rasterizer space of shape (numPoints, dimensions)
+    */
+  def ndcToTFNdc(ndc: Output[Float], imageWidth: Int, imageHeight: Int): Output[Float] = {
+    //there is a 0.5 pixel diagonal shift between the tf mesh rasterizer and the scalismo-faces renderer,
+    val multiplier = Output(1f, -1f, 1f)
+    val offset = Output(1f / imageWidth, 1f / imageHeight, 0f)
+    ndc * multiplier + offset
   }
 
   def renderTransform(pts: Output[Float], pose: TFPose, camera: TFCamera, width: Output[Float], height: Output[Float]): Output[Float] = {

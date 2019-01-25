@@ -18,12 +18,12 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * <br>
     * Tensor version which immediately calculates the result.
     *
-    * @param parameters model parameters
+    * @param shapeParameters model parameters
     * @return [[Tensor]] of mesh points
     */
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
-  def getInstance(parameters: Tensor[Float]): Tensor[Float] = {
-    val mesh = getInstance(parameters.toOutput)
+  def getInstance(shapeParameters: Tensor[Float]): Tensor[Float] = {
+    val mesh = getInstance(shapeParameters.toOutput)
 
     using(Session())(_.run(fetches = mesh))
   }
@@ -32,12 +32,12 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * Calculates the point positions for the model instance defined by the given parameters. Only returns the points
     * specified during creation of this TFLandmarksRenderer.
     *
-    * @param parameters model parameters
+    * @param shapeParameters model parameters
     * @return [[Output]] of mesh points
     */
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
-  def getInstance(parameters: Output[Float]): Output[Float] = {
-    val offsets = tf.matmul(shapeBasisMatrix, parameters * shapeParameterStd).reshape(Shape(-1, 3)).transpose()
+  def getInstance(shapeParameters: Output[Float]): Output[Float] = {
+    val offsets = tf.matmul(shapeBasisMatrix, shapeParameters * shapeParameterStd).reshape(Shape(-1, 3)).transpose()
     meanMesh + offsets
   }
 
@@ -47,11 +47,11 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * <br>
     * Tensor version which immediately calculates the result.
     *
-    * @param parameters batch of model parameters with shape (batchSize, numParameters)
+    * @param shapeParameters batch of model parameters with shape (batchSize, numParameters)
     * @return [[Tensor]] of mesh points with shape (batchSize, numPoints, pointDimensions [x, y, z])
     */
-  def batchGetInstance(parameters: Tensor[Float]): Tensor[Float] = {
-    val mesh = batchGetInstance(parameters.toOutput)
+  def batchGetInstance(shapeParameters: Tensor[Float]): Tensor[Float] = {
+    val mesh = batchGetInstance(shapeParameters.toOutput)
 
     using(Session())(_.run(fetches = mesh))
   }
@@ -60,11 +60,11 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * Calculates the point positions for the model instance defined by the given parameters. Only returns the points
     * specified during creation of this TFLandmarksRenderer. Version for batches of parameters.
     *
-    * @param parameters batch of model parameters with shape (batchSize, numParameters)
+    * @param shapeParameters batch of model parameters with shape (batchSize, numParameters)
     * @return [[Output]] of mesh points with shape (batchSize, numPoints, pointDimensions [x, y, z])
     */
-  def batchGetInstance(parameters: Output[Float]): Output[Float] = {
-    val offsets = tf.matmul(parameters * shapeParameterStd, shapeBasisMatrix).reshape(Shape(parameters.shape(0), shapeBasisMatrix.shape(1) / 3, 3))
+  def batchGetInstance(shapeParameters: Output[Float]): Output[Float] = {
+    val offsets = tf.matmul(shapeParameters * shapeParameterStd, shapeBasisMatrix).reshape(Shape(shapeParameters.shape(0), shapeBasisMatrix.shape(1) / 3, 3))
     meanMesh + offsets
   }
 
@@ -73,7 +73,7 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * <br>
     * Tensor version which immediately calculates the result.
     *
-    * @param parameters  model parameters
+    * @param shapeParameters  model parameters
     * @param pose        the pose of the model instance
     * @param camera      the camera for which to project the landmarks
     * @param imageWidth  the width of the rendered image
@@ -81,8 +81,8 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * @return [[Tensor]] of projected landmark positions
     */
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
-  def calculateLandmarks(parameters: Tensor[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Tensor[Float] = {
-    val landmarks = calculateLandmarks(parameters.toOutput, pose, camera, imageWidth, imageHeight)
+  def calculateLandmarks(shapeParameters: Tensor[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Tensor[Float] = {
+    val landmarks = calculateLandmarks(shapeParameters.toOutput, pose, camera, imageWidth, imageHeight)
 
     using(Session())(_.run(fetches = landmarks))
   }
@@ -90,7 +90,7 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
   /**
     * Calculates landmark positions in the rendered image for the given parameters.
     *
-    * @param parameters  model parameters
+    * @param shapeParameters  model parameters
     * @param pose        the pose of the model instance
     * @param camera      the camera for which to project the landmarks
     * @param imageWidth  the width of the rendered image
@@ -98,8 +98,8 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * @return [[Output]] of projected landmark positions
     */
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
-  def calculateLandmarks(parameters: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
-    val points = getInstance(parameters)
+  def calculateLandmarks(shapeParameters: Output[Float], pose: TFPose, camera: TFCamera, imageWidth: Int, imageHeight: Int): Output[Float] = {
+    val points = getInstance(shapeParameters)
     projectPointsOnImage(points, pose, camera, imageWidth, imageHeight)
   }
 
@@ -108,7 +108,7 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * <br>
     * Tensor version which immediately calculates the result.
     *
-    * @param parameters     batch of model parameters with shape (batchSize, numParameters)
+    * @param shapeParameters     batch of model parameters with shape (batchSize, numParameters)
     * @param roll           roll values of shape (batchSize)
     * @param pitch          pitch values of shape (batchSize)
     * @param yaw            yaw values of shape (batchSize)
@@ -120,11 +120,11 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
     * @return [[Tensor]] of projected landmark positions with shape (batchSize, numPoints, pointDimensions [x, y, z])
     */
-  def batchCalculateLandmarks(parameters: Tensor[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
+  def batchCalculateLandmarks(shapeParameters: Tensor[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
                               translation: Output[Float], cameraNear: Output[Float], cameraFar: Output[Float],
                               sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
                               imageWidth: Int, imageHeight: Int): Tensor[Float] = {
-    val landmarks = batchCalculateLandmarks(parameters.toOutput, roll, pitch, yaw, translation, cameraNear, cameraFar,
+    val landmarks = batchCalculateLandmarks(shapeParameters.toOutput, roll, pitch, yaw, translation, cameraNear, cameraFar,
       sensorSize, focalLength, principalPoint, imageWidth, imageHeight)
 
     using(Session())(_.run(fetches = landmarks))
@@ -136,7 +136,7 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * The translation and sensorSize parameters can also be specified as constant for the entire batch by providing an
     * [[Output]] of shape (1, 1, 3) or (1, 2) respectively.
     *
-    * @param parameters     batch of model parameters with shape (batchSize, numParameters)
+    * @param shapeParameters     batch of model parameters with shape (batchSize, numParameters)
     * @param roll           roll values of shape (batchSize)
     * @param pitch          pitch values of shape (batchSize)
     * @param yaw            yaw values of shape (batchSize)
@@ -148,11 +148,11 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
     * @return [[Output]] of projected landmark positions with shape (batchSize, numPoints, pointDimensions [x, y, z])
     */
-  def batchCalculateLandmarks(parameters: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
+  def batchCalculateLandmarks(shapeParameters: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
                               translation: Output[Float], cameraNear: Output[Float], cameraFar: Output[Float],
                               sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
                               imageWidth: Int, imageHeight: Int): Output[Float] = {
-    val points = batchGetInstance(parameters)
+    val points = batchGetInstance(shapeParameters)
 
     batchProjectPointsOnImage(points, roll, pitch, yaw, translation, cameraNear, cameraFar, sensorSize, focalLength, principalPoint, imageWidth, imageHeight)
   }
@@ -165,7 +165,7 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * The translation and sensorSize parameters can also be specified as constant for the entire batch by providing an
     * [[Output]] of shape (1, 1, 3) or (1, 2) respectively.
     *
-    * @param parameters     batch of model parameters with shape (batchSize, numParameters)
+    * @param shapeParameters     batch of model parameters with shape (batchSize, numParameters)
     * @param roll           roll values of shape (batchSize)
     * @param pitch          pitch values of shape (batchSize)
     * @param yaw            yaw values of shape (batchSize)
@@ -175,11 +175,11 @@ case class TFLandmarksRenderer(shapeBasisMatrix: Tensor[Float], shapeParameterSt
     * @param principalPoint values of shape (batchSize, 2 [principalPointX, principalPointY])
     * @return [[Output]] of projected landmark positions with shape (batchSize, numPoints, pointDimensions [x, y])
     */
-  def batchCalculateLandmarks2D(parameters: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
+  def batchCalculateLandmarks2D(shapeParameters: Output[Float], roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
                                 translation: Output[Float],
                                 sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
                                 imageWidth: Int, imageHeight: Int): Output[Float] = {
-    val points = batchGetInstance(parameters)
+    val points = batchGetInstance(shapeParameters)
 
     batchProjectPointsOnImage2D(points, roll, pitch, yaw, translation, sensorSize, focalLength, principalPoint, imageWidth, imageHeight)
   }

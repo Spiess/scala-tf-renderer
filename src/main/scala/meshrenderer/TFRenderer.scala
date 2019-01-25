@@ -17,7 +17,7 @@ case class TFRenderer(mesh: TFMesh, pts: Output[Float], colors: Output[Float], p
   }
 
   val ndcPts: Output[Float] = Transformations.objectToNDC(pts, pose, camera)
-  val ndcPtsTf: Output[Float] = Transformations.ndcToTFNdc(ndcPts, width, height).transpose()
+  val ndcPtsTf: Output[Float] = Transformations.transposedNdcToTFNdc(ndcPts, width, height).transpose()
 
   val triangleIdsAndBCC: Rasterizer.RasterizationOutput = Rasterizer.rasterize_triangles(ndcPtsTf, mesh.triangles, width, height)
   val vtxIdxPerPixel: Output[Int] = tf.gather(mesh.triangles, tf.reshape(triangleIdsAndBCC.triangleIds, Shape(-1)))
