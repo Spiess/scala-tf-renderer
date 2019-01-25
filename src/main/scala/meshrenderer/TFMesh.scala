@@ -18,9 +18,9 @@ case class TFMesh(mesh: VertexColorMesh3D) {
   }
   val adjacentPoints: Tensor[Int] = TFMeshOperations.adjacentPoints(mesh.shape)
   val triangles: Tensor[Int] = TFMesh.triangulationAsTensor(mesh.shape.triangulation)
-  val pts: Tensor[Float] = TFConversions.pointsToTensor(mesh.shape.position.pointData)//.transpose()
-  val colors: Tensor[Float] = TFConversions.pointsToTensor(mesh.color.pointData.map(_.toRGB)).transpose()
-  val normals: Tensor[Float] = TFConversions.pointsToTensor(mesh.shape.vertexNormals.pointData).transpose()
+  val pts: Tensor[Float] = TFConversions.pointsToTensorTransposed(mesh.shape.position.pointData)//.transpose()
+  val colors: Tensor[Float] = TFConversions.pointsToTensorTransposed(mesh.color.pointData.map(_.toRGB)).transpose()
+  val normals: Tensor[Float] = TFConversions.pointsToTensorTransposed(mesh.shape.vertexNormals.pointData).transpose()
 }
 
 object TFMesh {

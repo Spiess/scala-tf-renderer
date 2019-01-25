@@ -34,11 +34,11 @@ object TFConversions {
   }
 
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
-  def pointsToTensor[A](points: IndexedSeq[A])(implicit vectorizer: Vectorizer[A]): Tensor[Float] = {
-    pointsToTensorNotTransposed(points).transpose()
+  def pointsToTensorTransposed[A](points: IndexedSeq[A])(implicit vectorizer: Vectorizer[A]): Tensor[Float] = {
+    pointsToTensor(points).transpose()
   }
 
-  def pointsToTensorNotTransposed[A](points: IndexedSeq[A])(implicit vectorizer: Vectorizer[A]): Tensor[Float] = {
+  def pointsToTensor[A](points: IndexedSeq[A])(implicit vectorizer: Vectorizer[A]): Tensor[Float] = {
     val d = vectorizer.dim
     val bufferCapacity = points.length * d * 4
     val buffer = ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder())

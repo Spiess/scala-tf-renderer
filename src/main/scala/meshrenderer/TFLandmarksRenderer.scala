@@ -270,7 +270,7 @@ object TFLandmarksRenderer {
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def transposed(momo: MoMoBasic, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val shapeBasis = {
-      val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
+      val fullShapeBasis = TFMoMoConversions.toTensorTransposed(momo.shape.basisMatrix)
 
       if (landmarkPointIds != null) {
         val basisIndices = landmarkPointIds.flatMap(i => Seq(i * 3, i * 3 + 1, i * 3 + 2))
@@ -285,7 +285,7 @@ object TFLandmarksRenderer {
     val meanPoints = {
       val meanPointData = momo.mean.shape.position.pointData
       val collectedMeanPointData = if (landmarkPointIds == null) meanPointData else landmarkPointIds.collect(meanPointData)
-      TFConversions.pointsToTensor(collectedMeanPointData)
+      TFConversions.pointsToTensorTransposed(collectedMeanPointData)
     }
 
     TFLandmarksRenderer(shapeBasis, shapeStd, meanPoints)
@@ -302,7 +302,7 @@ object TFLandmarksRenderer {
     */
   def apply(momo: MoMoBasic, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val shapeBasis = {
-      val fullShapeBasis = TFMoMoConversions.toTensorNotTransposed(momo.shape.basisMatrix)
+      val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
 
       if (landmarkPointIds != null) {
         val basisIndices = landmarkPointIds.flatMap(i => Seq(i * 3, i * 3 + 1, i * 3 + 2))
@@ -317,7 +317,7 @@ object TFLandmarksRenderer {
     val meanPoints = {
       val meanPointData = momo.mean.shape.position.pointData
       val collectedMeanPointData = if (landmarkPointIds == null) meanPointData else landmarkPointIds.collect(meanPointData)
-      TFConversions.pointsToTensorNotTransposed(collectedMeanPointData)
+      TFConversions.pointsToTensor(collectedMeanPointData)
     }
 
     TFLandmarksRenderer(shapeBasis, shapeStd, meanPoints)
@@ -338,8 +338,8 @@ object TFLandmarksRenderer {
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
   def transposed(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val (shapeBasis, expressionBasis) = {
-      val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
-      val fullExpressionBasis = TFMoMoConversions.toTensor(momo.expression.basisMatrix)
+      val fullShapeBasis = TFMoMoConversions.toTensorTransposed(momo.shape.basisMatrix)
+      val fullExpressionBasis = TFMoMoConversions.toTensorTransposed(momo.expression.basisMatrix)
 
       if (landmarkPointIds != null) {
         val basisIndices = landmarkPointIds.flatMap(i => Seq(i * 3, i * 3 + 1, i * 3 + 2))
@@ -363,7 +363,7 @@ object TFLandmarksRenderer {
     val meanPoints = {
       val meanPointData = momo.mean.shape.position.pointData
       val collectedMeanPointData = if (landmarkPointIds == null) meanPointData else landmarkPointIds.collect(meanPointData)
-      TFConversions.pointsToTensor(collectedMeanPointData)
+      TFConversions.pointsToTensorTransposed(collectedMeanPointData)
     }
 
     TFLandmarksRenderer(combinedBasis, combinedStd, meanPoints)
@@ -380,8 +380,8 @@ object TFLandmarksRenderer {
     */
   def apply(momo: MoMoExpress, landmarkPointIds: IndexedSeq[Int]): TFLandmarksRenderer = {
     val (shapeBasis, expressionBasis) = {
-      val fullShapeBasis = TFMoMoConversions.toTensorNotTransposed(momo.shape.basisMatrix)
-      val fullExpressionBasis = TFMoMoConversions.toTensorNotTransposed(momo.expression.basisMatrix)
+      val fullShapeBasis = TFMoMoConversions.toTensor(momo.shape.basisMatrix)
+      val fullExpressionBasis = TFMoMoConversions.toTensor(momo.expression.basisMatrix)
 
       if (landmarkPointIds != null) {
         val basisIndices = landmarkPointIds.flatMap(i => Seq(i * 3, i * 3 + 1, i * 3 + 2))
@@ -405,7 +405,7 @@ object TFLandmarksRenderer {
     val meanPoints = {
       val meanPointData = momo.mean.shape.position.pointData
       val collectedMeanPointData = if (landmarkPointIds == null) meanPointData else landmarkPointIds.collect(meanPointData)
-      TFConversions.pointsToTensorNotTransposed(collectedMeanPointData)
+      TFConversions.pointsToTensor(collectedMeanPointData)
     }
 
     TFLandmarksRenderer(combinedBasis, combinedStd, meanPoints)

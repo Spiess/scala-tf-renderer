@@ -23,16 +23,16 @@ case class TFMoMoExpress(shape: Tensor[Float], shapeStddev: Tensor[Float], color
 object TFMoMo {
   def apply(model: MoMoBasic): TFMoMoBasic = {
     TFMoMoBasic(
-      TFMoMoConversions.toTensor(model.shape.basisMatrix), TFMoMoConversions.toTensor(model.shape.variance.map(math.sqrt)).transpose(),
-      TFMoMoConversions.toTensor(model.color.basisMatrix), TFMoMoConversions.toTensor(model.color.variance.map(math.sqrt)).transpose()
+      TFMoMoConversions.toTensorTransposed(model.shape.basisMatrix), TFMoMoConversions.toTensor(model.shape.variance.map(math.sqrt)).transpose(),
+      TFMoMoConversions.toTensorTransposed(model.color.basisMatrix), TFMoMoConversions.toTensor(model.color.variance.map(math.sqrt)).transpose()
     )
   }
 
   def apply(model: MoMoExpress): TFMoMoExpress = {
     TFMoMoExpress(
-      TFMoMoConversions.toTensor(model.shape.basisMatrix), TFMoMoConversions.toTensor(model.shape.variance.map(math.sqrt)).transpose(),
-      TFMoMoConversions.toTensor(model.color.basisMatrix), TFMoMoConversions.toTensor(model.color.variance.map(math.sqrt)).transpose(),
-      TFMoMoConversions.toTensor(model.expression.basisMatrix), TFMoMoConversions.toTensor(model.expression.variance.map(math.sqrt)).transpose()
+      TFMoMoConversions.toTensorTransposed(model.shape.basisMatrix), TFMoMoConversions.toTensor(model.shape.variance.map(math.sqrt)).transpose(),
+      TFMoMoConversions.toTensorTransposed(model.color.basisMatrix), TFMoMoConversions.toTensor(model.color.variance.map(math.sqrt)).transpose(),
+      TFMoMoConversions.toTensorTransposed(model.expression.basisMatrix), TFMoMoConversions.toTensor(model.expression.variance.map(math.sqrt)).transpose()
     )
   }
 
@@ -79,11 +79,11 @@ case class TFMoMoExpressParameterModel(model: TFMoMoExpress, mean: TFMesh, initP
 object TFMoMoConversions {
 
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
-  def toTensor(mat: DenseMatrix[Double]): Tensor[Float] = {
-    toTensorNotTransposed(mat).transpose()
+  def toTensorTransposed(mat: DenseMatrix[Double]): Tensor[Float] = {
+    toTensor(mat).transpose()
   }
 
-  def toTensorNotTransposed(mat: DenseMatrix[Double]): Tensor[Float] = {
+  def toTensor(mat: DenseMatrix[Double]): Tensor[Float] = {
     val bufferCapacity = mat.size * 4
     val buffer = ByteBuffer.allocateDirect(bufferCapacity).order(ByteOrder.nativeOrder())
     mat.toArray.map(_.toFloat).foreach(buffer.putFloat)

@@ -26,8 +26,8 @@ object Example {
   def main(args: Array[String]): Unit = {
 
     val runRenderTest = true
-    val runLandmarkTest = false
-    val runOptimizationExample = false
+    val runLandmarkTest = true
+    val runOptimizationExample = true
 
     val model = time("Initializing and loading model",
       {
@@ -102,11 +102,11 @@ object Example {
 
     // Calculate color
     val color = {
-      val meanColor = TFConversions.pointsToTensorNotTransposed(model.mean.color.pointData.map(_.toRGB))
+      val meanColor = TFConversions.pointsToTensor(model.mean.color.pointData.map(_.toRGB))
 
       println(s"Mean color shape: ${meanColor.shape}")
 
-      val colorBasisMatrix = TFMoMoConversions.toTensorNotTransposed(expressionModel.color.basisMatrix)
+      val colorBasisMatrix = TFMoMoConversions.toTensor(expressionModel.color.basisMatrix)
       val colorStandardDeviation = TFMoMoConversions.toTensor(expressionModel.color.variance.map(math.sqrt))
 
       println(s"Color coefficients shape: ${colorCoefficients.shape}")
@@ -122,7 +122,7 @@ object Example {
     }
 
     // Calculate illumination
-    val illumination = TFConversions.pointsToTensorNotTransposed(parameters.environmentMap.coefficients)
+    val illumination = TFConversions.pointsToTensor(parameters.environmentMap.coefficients)
 
     println(s"Illumination shape: ${illumination.shape}")
 
@@ -232,7 +232,7 @@ object Example {
     })
 
     val initLight = time("Transforming TFLight", {
-      TFConversions.pointsToTensor(param.environmentMap.coefficients).transpose()
+      TFConversions.pointsToTensorTransposed(param.environmentMap.coefficients).transpose()
     })
 
     //    //val variableModel = new OffsetFromInitializationModel(tfMesh.pts, tfMesh.colors, initPose, initCamera, initLight)

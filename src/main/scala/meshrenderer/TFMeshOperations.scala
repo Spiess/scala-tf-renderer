@@ -132,7 +132,7 @@ object TFMeshOperations {
     println("trianglesForPointData", trianglesForPointData)
 
     val triangles = TFMesh.triangulationAsTensor(mesh.shape.triangulation)
-    val pts = TFConversions.pointsToTensor(mesh.shape.position.pointData)
+    val pts = TFConversions.pointsToTensorTransposed(mesh.shape.position.pointData)
 
     val cellNormals = triangleNormals(pts.transpose(), triangles)
 

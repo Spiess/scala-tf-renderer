@@ -21,9 +21,9 @@ object TFImageRenderer {
   def apply(momo: MoMoBasic): TFImageRenderer = {
     val landmarksRenderer = TFLandmarksRenderer(momo, null)
 
-    val colorBasisMatrix = TFMoMoConversions.toTensorNotTransposed(momo.color.basisMatrix)
+    val colorBasisMatrix = TFMoMoConversions.toTensor(momo.color.basisMatrix)
     val colorParameterStd = TFMoMoConversions.toTensor(momo.color.variance.map(math.sqrt))
-    val meanColor = TFConversions.pointsToTensorNotTransposed(momo.mean.color.pointData.map(_.toRGB))
+    val meanColor = TFConversions.pointsToTensor(momo.mean.color.pointData.map(_.toRGB))
 
     TFImageRenderer(landmarksRenderer, colorBasisMatrix, colorParameterStd, meanColor)
   }
@@ -31,9 +31,9 @@ object TFImageRenderer {
   def apply(momo: MoMoExpress): TFImageRenderer = {
     val landmarksRenderer = TFLandmarksRenderer(momo, null)
 
-    val colorBasisMatrix = TFMoMoConversions.toTensorNotTransposed(momo.color.basisMatrix)
+    val colorBasisMatrix = TFMoMoConversions.toTensor(momo.color.basisMatrix)
     val colorParameterStd = TFMoMoConversions.toTensor(momo.color.variance.map(math.sqrt))
-    val meanColor = TFConversions.pointsToTensorNotTransposed(momo.mean.color.pointData.map(_.toRGB))
+    val meanColor = TFConversions.pointsToTensor(momo.mean.color.pointData.map(_.toRGB))
 
     TFImageRenderer(landmarksRenderer, colorBasisMatrix, colorParameterStd, meanColor)
   }
