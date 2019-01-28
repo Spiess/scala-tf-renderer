@@ -78,7 +78,9 @@ case class TFImageRenderer(landmarksRenderer: TFLandmarksRenderer,
   }
 
   /**
-    * Renders a batch of parameters.
+    * Renders a batch of parameters. WARNING: Because some operations used here are not/cannot be optimized for batches,
+    * this method may perform poorly and can only be used for the specified batch size. After the operations have been
+    * constructed the batch size cannot be changed.
     *
     * @param shapeParameters            all shape related parameters with shape (batchSize, number of parameters)
     * @param colorParameters            color parameters with shape (batchSize, number of parameters)
@@ -92,6 +94,7 @@ case class TFImageRenderer(landmarksRenderer: TFLandmarksRenderer,
     * @param sensorSize                 camera sensor size of shape (batchSize, 2 [width, height])
     * @param focalLength                shape ()
     * @param principalPoint             camera principal point of shape (batchSize, 2 [x, y])
+    * @param batchSize                  the number of samples in one batch
     * @return image output of shape (batchSize, height, width, 3 [r, g, b])
     */
   def batchRender(
@@ -99,22 +102,41 @@ case class TFImageRenderer(landmarksRenderer: TFLandmarksRenderer,
                    roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
                    imageWidth: Int, imageHeight: Int,
                    translation: Output[Float], cameraNear: Output[Float], cameraFar: Output[Float],
-                   sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float]
+                   sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
+                   batchSize: Int
                  ): Output[Float] = {
-    // TODO: implement batch rendering
 
-    val points = landmarksRenderer.batchGetInstance(shapeParameters).reshape(Shape(-1, 3))
+    val points = landmarksRenderer.batchGetInstance(shapeParameters) // shape (batchSize, numPoints, 3)
 
     val color = {
       val colorOffset = tf.matmul(colorParameters * colorParameterStd, colorBasisMatrix)
         .reshape(Shape(colorParameters.shape(0), colorBasisMatrix.shape(1) / 3, 3))
       meanColor + colorOffset
-    }
+    } // shape (batchSize, colorSize)
 
-    val normals = TFMeshOperations.vertexNormals(points, triangles, trianglesForPointData)
-    val worldNormals = Transformations.batchPoseRotationTransform(normals.expandDims(0), pitch, yaw, roll)
+    // TODO: Not batch optimized yet
+    val normals = tf.stack((0 until batchSize).map(i => TFMeshOperations.vertexNormals(points(i, ::, ::), triangles, trianglesForPointData))) // TODO: Shape (batchSize, ???, 3)
 
-    ???
+    val worldNormals = Transformations.batchPoseRotationTransform(normals, pitch, yaw, roll) // TODO: Shape (batchSize, ???, 3)
+
+    val ndcPts = Transformations.batchPointsToNDC(points, roll, pitch, yaw, translation, cameraNear, cameraFar,
+      sensorSize, focalLength, principalPoint) // shape (batchSize, numPoints, 3)
+    // TODO: Might or might not work for batches
+    val ndcPtsTf = Transformations.ndcToTFNdc(ndcPts, imageWidth, imageHeight) // shape (batchSize, numPoints, 3)
+
+    // TODO: Not batch optimized yet
+    // Rendering and shading
+    val images = (0 until batchSize).map(i => {
+      val triangleIdsAndBCC = Rasterizer.rasterize_triangles(ndcPtsTf(i), triangles, imageWidth, imageHeight)
+
+      val vtxIdxPerPixel = tf.gather(triangles, triangleIdsAndBCC.triangleIds.reshape(Shape(-1)))
+      val interpolatedAlbedo = Shading.interpolateVertexDataPerspectiveCorrect(triangleIdsAndBCC, vtxIdxPerPixel, color(i, ::), ndcPtsTf(i, ::, 2))
+      val interpolatedNormals = Shading.interpolateVertexDataPerspectiveCorrect(triangleIdsAndBCC, vtxIdxPerPixel, worldNormals(i, ::, ::), ndcPtsTf(i, ::, 2))
+
+      Shading.sphericalHarmonicsLambertShader(interpolatedAlbedo, interpolatedNormals, environmentMapCoefficients(i, ::, ::))
+    })
+
+    tf.stack(images)
   }
 }
 

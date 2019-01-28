@@ -24,7 +24,7 @@ object TFMeshOperations {
     val u = pt2 - pt1
     val v = pt3 - pt1
 
-    println("u", u)
+//    println("u", u)
 
     val cross = tf.cross(u,v)
 
@@ -32,8 +32,8 @@ object TFMeshOperations {
   }
 
   def vertexNormals(cellNormals: Output[Float], triangleIdsForPoint: Output[Int]): Output[Float] = {
-    println("cellNromals", cellNormals)
-    println("triangleIdsForPoint", triangleIdsForPoint)
+//    println("cellNromals", cellNormals)
+//    println("triangleIdsForPoint", triangleIdsForPoint)
     tf.createWith(nameScope="vertexNormals") {
       val normalsPerVertex = tf.gather(cellNormals, triangleIdsForPoint)
 
@@ -41,10 +41,10 @@ object TFMeshOperations {
 
       val sumValidEntries = tf.countNonZero(validEntries.toInt, axes = Seq(1))
 
-      println("validEntries", validEntries)
-      println("sumValidEntries", sumValidEntries)
+//      println("validEntries", validEntries)
+//      println("sumValidEntries", sumValidEntries)
 
-      println("normalsPerVertex", normalsPerVertex)
+//      println("normalsPerVertex", normalsPerVertex)
       val temp0 = tf.expandDims(validEntries, 2)
       val temp1 = tf.tile(temp0, Shape(1, 1, 3))
       tf.l2Normalize(
