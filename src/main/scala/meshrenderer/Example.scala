@@ -14,7 +14,7 @@ import scalismo.faces.mesh.{ColorNormalMesh3D, VertexColorMesh3D}
 import scalismo.faces.momo.{MoMo, MoMoCoefficients}
 import scalismo.faces.parameters._
 import scalismo.faces.sampling.face.MoMoRenderer
-import scalismo.geometry.Point
+import scalismo.geometry.{Point, Vector}
 import scalismo.mesh.TriangleMesh3D
 import scalismo.utils.Random
 
@@ -87,6 +87,18 @@ object Example {
 
       default.withPose(Pose(scaling = default.pose.scaling, translation = default.pose.translation, rand.rng.scalaRandom.nextGaussian() * 0.1, rand.rng.scalaRandom.nextGaussian() * 0.5, rand.rng.scalaRandom.nextGaussian() * 0.3))
         .withEnvironmentMap(default.environmentMap.copy(coefficients = default.environmentMap.coefficients.map(_.map(_ + rand.rng.scalaRandom.nextGaussian() * 0.2)))) // Randomize environment map
+//        .withCamera(default.camera.copy(sensorSize = Vector(9, 9)))
+//        .withImageSize(ImageSize(227, 227))
+    }
+
+    val coefficients2 = model.sampleCoefficients()
+    val parameters2 = {
+      val default = RenderParameter.default.withMoMo(MoMoInstance.fromCoefficients(coefficients2, new File("../face-autoencoder/model2017-1_bfm_nomouth.h5").toURI))
+
+      default.withPose(Pose(scaling = default.pose.scaling, translation = default.pose.translation, rand.rng.scalaRandom.nextGaussian() * 0.1, rand.rng.scalaRandom.nextGaussian() * 0.5, rand.rng.scalaRandom.nextGaussian() * 0.3))
+        .withEnvironmentMap(default.environmentMap.copy(coefficients = default.environmentMap.coefficients.map(_.map(_ + rand.rng.scalaRandom.nextGaussian() * 0.2)))) // Randomize environment map
+      //        .withCamera(default.camera.copy(sensorSize = Vector(9, 9)))
+      //        .withImageSize(ImageSize(227, 227))
     }
 
     // Convert parameters to outputs
@@ -105,12 +117,12 @@ object Example {
     val imageHeight = parameters.imageSize.height
 
     val translation: Tensor[Float] = Tensor(parameters.pose.translation.x.toFloat, parameters.pose.translation.y.toFloat, parameters.pose.translation.z.toFloat)
-    val sensorSize = Tensor(parameters.camera.sensorSize.x.toFloat, parameters.camera.sensorSize.y.toFloat)
-    val principalPoint = Tensor(parameters.camera.principalPoint.x.toFloat, parameters.camera.principalPoint.y.toFloat)
+    val sensorSize: Tensor[Float] = Tensor(parameters.camera.sensorSize.x.toFloat, parameters.camera.sensorSize.y.toFloat)
+    val principalPoint: Tensor[Float] = Tensor(parameters.camera.principalPoint.x.toFloat, parameters.camera.principalPoint.y.toFloat)
 
     val cameraNear = parameters.camera.near.toFloat
     val cameraFar = parameters.camera.far.toFloat
-    val focalLength = parameters.camera.focalLength.toFloat
+    val focalLength: Float = parameters.camera.focalLength.toFloat
 
     // Calculate illumination
     val illumination = TFConversions.pointsToTensor(parameters.environmentMap.coefficients)
@@ -119,8 +131,45 @@ object Example {
 
     // TF image renderer
     val imageRenderer = TFImageRenderer(model.expressionModel.get)
+    val basicImageRenderer = TFImageRenderer(model.neutralModel)
 
     val rendererImage = imageRenderer.render(shapeExpressionParams, colorCoefficients, illumination, roll, pitch, yaw, imageWidth, imageHeight, translation, cameraNear, cameraFar, sensorSize, focalLength, principalPoint)
+
+    val (rendererBatchImage, basicBatchImage) = {
+      val colorCoefficients2: Output[Float] = TFMoMoConversions.toTensor(coefficients2.color)
+      val shapeExpressionParams2: Output[Float] = TFMoMoConversions.toTensor(DenseVector.vertcat(coefficients2.shape, coefficients2.expression))
+
+      val roll2: Output[Float] = parameters2.pose.roll.toFloat
+      val pitch2: Output[Float] = parameters2.pose.pitch.toFloat
+      val yaw2: Output[Float] = parameters2.pose.yaw.toFloat
+
+      val principalPoint2: Tensor[Float] = Tensor(parameters2.camera.principalPoint.x.toFloat, parameters2.camera.principalPoint.y.toFloat)
+
+      val illumination2 = TFConversions.pointsToTensor(parameters2.environmentMap.coefficients)
+
+      val batchShapeParams = tf.concatenate(Seq(shapeExpressionParams, shapeExpressionParams2))
+      val batchColorCoefficients = tf.concatenate(Seq(colorCoefficients, colorCoefficients2))
+      val batchEnvironmentMap = tf.stack(Seq(illumination.toOutput, illumination2.toOutput))
+
+      val multiBatchRoll = tf.stack(Seq(roll, roll2))
+      val multiBatchPitch = tf.stack(Seq(pitch, pitch2))
+      val multiBatchYaw = tf.stack(Seq(yaw, yaw2))
+
+      val batchTranslation = translation.reshape(Shape(1, 1, 3))
+      val batchSensorSize = sensorSize.reshape(Shape(1, 2))
+      val batchPrincipalPoint = tf.stack(Seq(principalPoint.toOutput, principalPoint2.toOutput))
+
+      val basicBatchShapeParams = tf.concatenate(Seq(TFMoMoConversions.toTensor(coefficients.shape).toOutput, TFMoMoConversions.toTensor(coefficients2.shape).toOutput))
+
+      (
+        imageRenderer.batchRender(batchShapeParams, batchColorCoefficients, batchEnvironmentMap, multiBatchRoll,
+          multiBatchPitch, multiBatchYaw, imageWidth, imageHeight, batchTranslation, cameraNear, cameraFar,
+          batchSensorSize, focalLength, batchPrincipalPoint, 2),
+        basicImageRenderer.batchRender(basicBatchShapeParams, batchColorCoefficients, batchEnvironmentMap, multiBatchRoll,
+          multiBatchPitch, multiBatchYaw, imageWidth, imageHeight, batchTranslation, cameraNear, cameraFar,
+          batchSensorSize, focalLength, batchPrincipalPoint, 2)
+      )
+    }
 
     // Calculate color
     val color = {
@@ -168,7 +217,6 @@ object Example {
 
     println(s"Normals shape: ${normals.shape}")
 
-    // TODO: Make conforming to dimension ordering
     val worldNormals: Output[Float] = Transformations.batchPoseRotationTransform(normals.expandDims(0), batchPitch, batchYaw, batchRoll).reshape(Shape(-1, 3))
 
     println(s"World normals shape: ${worldNormals.shape}")
@@ -216,19 +264,39 @@ object Example {
     // Check results
     using(Session())(session => {
       val result = time("Rendering result with TensorFlow", {session.run(fetches = Seq(shShader, rendererImage))})
+      val batchResult = time("Rendering batch result with TensorFlow", {session.run(fetches = rendererBatchImage)})
+      val basicBatchResult = time("Rendering basic batch result with TensorFlow", {session.run(fetches = basicBatchImage)})
 
       val rendering = time("Converting results to Pixel Images", {result.map(r => TFConversions.oneToOneTensorImage3dToPixelImage(r.transpose(permutation = Tensor(1, 0, 2))))})
       time("Writing TF Render to file", {PixelImageIO.write(rendering.head, new File("/tmp/renderTestRendering.png")).get})
       PixelImageIO.write(rendering(1), new File("/tmp/renderTestRendererImage.png")).get
+
+      val batchRendering = TFConversions.oneToOneTensorImage3dToPixelImage(batchResult(0, ::, ::, ::).transpose(permutation = Tensor(1, 0, 2)))
+      val batchRendering2 = TFConversions.oneToOneTensorImage3dToPixelImage(batchResult(1, ::, ::, ::).transpose(permutation = Tensor(1, 0, 2)))
+      PixelImageIO.write(batchRendering, new File("/tmp/renderTestRendererBatchImage0.png")).get
+      PixelImageIO.write(batchRendering2, new File("/tmp/renderTestRendererBatchImage1.png")).get
+      val basicBatchRendering = TFConversions.oneToOneTensorImage3dToPixelImage(basicBatchResult(0, ::, ::, ::).transpose(permutation = Tensor(1, 0, 2)))
+      val basicBatchRendering2 = TFConversions.oneToOneTensorImage3dToPixelImage(basicBatchResult(1, ::, ::, ::).transpose(permutation = Tensor(1, 0, 2)))
+      PixelImageIO.write(basicBatchRendering, new File("/tmp/renderTestRendererBasicBatchImage0.png")).get
+      PixelImageIO.write(basicBatchRendering2, new File("/tmp/renderTestRendererBasicBatchImage1.png")).get
     })
 
     // Render with MoMoRenderer for comparison
     {
       val momoRenderer = MoMoRenderer(model)
+      val basicMoMoRenderer = MoMoRenderer(model.neutralModel)
 
       val renderedImage = momoRenderer.renderImage(parameters)
+      val renderedImage2 = momoRenderer.renderImage(parameters2)
+
+      val basicRenderedImage = basicMoMoRenderer.renderImage(parameters)
+      val basicRenderedImage2 = basicMoMoRenderer.renderImage(parameters2)
 
       PixelImageIO.write(renderedImage, new File("/tmp/renderTestGroundTruth.png")).get
+      PixelImageIO.write(renderedImage2, new File("/tmp/renderTestRendererBatchImage1GroundTruth.png")).get
+
+      PixelImageIO.write(basicRenderedImage, new File("/tmp/renderTestRendererBasicBatchImage0GroundTruth.png")).get
+      PixelImageIO.write(basicRenderedImage2, new File("/tmp/renderTestRendererBasicBatchImage1GroundTruth.png")).get
     }
   }
 

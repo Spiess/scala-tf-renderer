@@ -117,7 +117,7 @@ object Shading {
       N2_2*(xx-yy)
     ))
 
-    println("sh", sh)
+//    println("sh", sh)
 
     sh
   }
@@ -127,24 +127,24 @@ object Shading {
     val sh = shBasis(normalsPerPixel.reshape(Shape(-1,3)))
     val lk = Tensor(SphericalHarmonicsLight.lambertKernel.map(_.toFloat)).reshape(Shape(9,1))
     val shlk = sh*lk
-    println("shlk", shlk)
-    println("envMap", envMap)
+//    println("shlk", shlk)
+//    println("envMap", envMap)
 
     val envRep = tf.tile(tf.expandDims(envMap, axis=2), Seq(1,1, shlk.shape(1))).transpose(Seq(0,2,1))
-    println("envRep", envRep)
+//    println("envRep", envRep)
 
     val expShlk = tf.tile(tf.expandDims(shlk, axis=2), Shape(1,1,3))
-    println("expShlk", expShlk)
+//    println("expShlk", expShlk)
 
     val res = expShlk * envRep
-    println("res", res)
+//    println("res", res)
 
     val convolved = tf.sum(res, axes=Seq(0))
-    println("convolved", convolved)
+//    println("convolved", convolved)
 
     val conv = convolved.reshape(Shape(albedoPerPixel.shape(0), albedoPerPixel.shape(1), 3))
-    println("conv", conv)
-    println("albedoPerPixel", albedoPerPixel)
+//    println("conv", conv)
+//    println("albedoPerPixel", albedoPerPixel)
 
     tf.nameScope("shshader") {
       albedoPerPixel * conv
