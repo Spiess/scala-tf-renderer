@@ -115,13 +115,12 @@ case class TFImageRenderer(landmarksRenderer: TFLandmarksRenderer,
     } // shape (batchSize, colorSize)
 
     // TODO: Not batch optimized yet
-    val normals = tf.stack((0 until batchSize).map(i => TFMeshOperations.vertexNormals(points(i, ::, ::), triangles, trianglesForPointData))) // TODO: Shape (batchSize, ???, 3)
+    val normals = tf.stack((0 until batchSize).map(i => TFMeshOperations.vertexNormals(points(i, ::, ::), triangles, trianglesForPointData))) // TODO: determine shape (batchSize, ???, 3)
 
-    val worldNormals = Transformations.batchPoseRotationTransform(normals, pitch, yaw, roll) // TODO: Shape (batchSize, ???, 3)
+    val worldNormals = Transformations.batchPoseRotationTransform(normals, pitch, yaw, roll) // TODO: determine shape (batchSize, ???, 3)
 
     val ndcPts = Transformations.batchPointsToNDC(points, roll, pitch, yaw, translation, cameraNear, cameraFar,
       sensorSize, focalLength, principalPoint) // shape (batchSize, numPoints, 3)
-    // TODO: Might or might not work for batches
     val ndcPtsTf = Transformations.ndcToTFNdc(ndcPts, imageWidth, imageHeight) // shape (batchSize, numPoints, 3)
 
     // TODO: Not batch optimized yet

@@ -212,7 +212,7 @@ object Example {
     }
 
 
-    // TODO: Not batch optimized yet
+    // Not batch optimized yet
     val normals: Output[Float] = TFMeshOperations.vertexNormals(points, triangles, trianglesForPointData)
 
     println(s"Normals shape: ${normals.shape}")
@@ -221,7 +221,7 @@ object Example {
 
     println(s"World normals shape: ${worldNormals.shape}")
 
-    // TODO: Not batch optimized yet
+    // Not batch optimized yet
     val ndcPts = {
       val batchTranslation = translation.expandDims(0)
       val batchSensorSize = sensorSize.expandDims(0)
@@ -236,14 +236,14 @@ object Example {
     println(s"NDC shape: ${ndcPts.shape}")
     println(s"NDC TF shape: ${ndcPtsTf.shape}")
 
-    // TODO: Not batch optimized yet
+    // Not batch optimized yet
     val triangleIdsAndBCC: Rasterizer.RasterizationOutput = Rasterizer.rasterize_triangles(ndcPtsTf, triangles, imageWidth, imageHeight)
     val vtxIdxPerPixel: Output[Int] = tf.gather(triangles, triangleIdsAndBCC.triangleIds.reshape(Shape(-1)))
 
     println(s"Triangle Ids and BCC shape: ${triangleIdsAndBCC.barycetricImage.shape}, ${triangleIdsAndBCC.triangleIds.shape}, ${triangleIdsAndBCC.zBufferImage.shape}")
     println(s"vtxIdxPerPixel shape: ${vtxIdxPerPixel.shape}")
 
-    // TODO: Not batch optimized yet
+    // Not batch optimized yet
     val vtxIdxPerPixelGath: Output[Int] = tf.gatherND(triangles, tf.expandDims(triangleIdsAndBCC.triangleIds, 2))
 
     println(s"vtxIdxPerPixelGath shape: ${vtxIdxPerPixelGath.shape}")
