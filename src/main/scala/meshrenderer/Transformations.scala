@@ -146,7 +146,7 @@ object Transformations {
     val newpx = ppx - (px * 2f * focalLength) / (pz * ssx)
     val newpy = ppy - (py * 2f * focalLength) / (pz * ssy)
     val newpz = (far * near * 2f / pz + near + far) / (far - near)
-    tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose()
+    tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose(Tensor(1, 2, 0))
   }
 
   def batchProjectiveTransformation2D(points: Output[Float],
@@ -165,7 +165,7 @@ object Transformations {
 
     val newpx = ppx - (px * 2f * focalLength) / (pz * ssx)
     val newpy = ppy - (py * 2f * focalLength) / (pz * ssy)
-    tf.stack(Seq(newpx, newpy), axis = 0).transpose()
+    tf.stack(Seq(newpx, newpy), axis = 0).transpose(Tensor(1, 2, 0))
   }
 
   @deprecated("Uses deprecated point ordering (dimensions, numPoints).", "0.1-SNAPSHOT")
@@ -190,7 +190,7 @@ object Transformations {
     val newpx = (px + 1f) * width / 2f
     val newpy = (-py + 1f) * height / 2f
     val newpz = pz * (f - n) / 2f + (f + n) / 2f
-    tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose()
+    tf.stack(Seq(newpx, newpy, newpz), axis = 0).transpose(Tensor(1, 2, 0))
   }
 
   def batchScreenTransformation2D(pt: Output[Float], width: Output[Float], height: Output[Float]): Output[Float] = {
@@ -198,7 +198,7 @@ object Transformations {
     val py = pt(::, ::, 1)
     val newpx = (px + 1f) * width / 2f
     val newpy = (-py + 1f) * height / 2f
-    tf.stack(Seq(newpx, newpy), axis = 0).transpose()
+    tf.stack(Seq(newpx, newpy), axis = 0).transpose(Tensor(1, 2, 0))
   }
 
   // TODO: Change the way points are stored: change (dimension, point) to (point dimension) because this is incredibly unintuitive and often inconvenient
