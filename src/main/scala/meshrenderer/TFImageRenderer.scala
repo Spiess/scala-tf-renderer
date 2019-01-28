@@ -77,6 +77,23 @@ case class TFImageRenderer(landmarksRenderer: TFLandmarksRenderer,
     Shading.sphericalHarmonicsLambertShader(interpolatedAlbedo, interpolatedNormals, environmentMapCoefficients)
   }
 
+  /**
+    * Renders a batch of parameters.
+    *
+    * @param shapeParameters            all shape related parameters with shape (batchSize, number of parameters)
+    * @param colorParameters            color parameters with shape (batchSize, number of parameters)
+    * @param environmentMapCoefficients environment map coefficients with shape (batchSize, number of coefficients, 3)
+    * @param roll                       shape (batchSize)
+    * @param pitch                      shape (batchSize)
+    * @param yaw                        shape (batchSize)
+    * @param translation                pose translation with shape (batchSize, 1, pointDimensions [x, y, z])
+    * @param cameraNear                 shape ()
+    * @param cameraFar                  shape ()
+    * @param sensorSize                 camera sensor size of shape (batchSize, 2 [width, height])
+    * @param focalLength                shape ()
+    * @param principalPoint             camera principal point of shape (batchSize, 2 [x, y])
+    * @return image output of shape (batchSize, height, width, 3 [r, g, b])
+    */
   def batchRender(
                    shapeParameters: Output[Float], colorParameters: Output[Float], environmentMapCoefficients: Output[Float],
                    roll: Output[Float], pitch: Output[Float], yaw: Output[Float],
@@ -85,6 +102,18 @@ case class TFImageRenderer(landmarksRenderer: TFLandmarksRenderer,
                    sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float]
                  ): Output[Float] = {
     // TODO: implement batch rendering
+
+    val points = landmarksRenderer.batchGetInstance(shapeParameters).reshape(Shape(-1, 3))
+
+    val color = {
+      val colorOffset = tf.matmul(colorParameters * colorParameterStd, colorBasisMatrix)
+        .reshape(Shape(colorParameters.shape(0), colorBasisMatrix.shape(1) / 3, 3))
+      meanColor + colorOffset
+    }
+
+    val normals = TFMeshOperations.vertexNormals(points, triangles, trianglesForPointData)
+    val worldNormals = Transformations.batchPoseRotationTransform(normals.expandDims(0), pitch, yaw, roll)
+
     ???
   }
 }
