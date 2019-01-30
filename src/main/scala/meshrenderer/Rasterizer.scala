@@ -108,7 +108,6 @@ object Rasterizer {
     })
      */
 
-    println("outGrad", outGrad.output.length, outGrad)
     /*
      The input triangles must be given a gradient. Since these are not supposed to change and don't have any meaningful
      gradient, we assign it a zero gradient.

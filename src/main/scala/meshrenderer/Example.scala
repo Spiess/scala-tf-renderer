@@ -83,22 +83,22 @@ object Example {
     // Get random parameters
     val coefficients = model.sampleCoefficients()
     val parameters = {
-      val default = RenderParameter.default.withMoMo(MoMoInstance.fromCoefficients(coefficients, new File("../face-autoencoder/model2017-1_bfm_nomouth.h5").toURI))
+      val default = RenderParameter.defaultSquare.withMoMo(MoMoInstance.fromCoefficients(coefficients, new File("../face-autoencoder/model2017-1_bfm_nomouth.h5").toURI))
 
       default.withPose(Pose(scaling = default.pose.scaling, translation = default.pose.translation, rand.rng.scalaRandom.nextGaussian() * 0.1, rand.rng.scalaRandom.nextGaussian() * 0.5, rand.rng.scalaRandom.nextGaussian() * 0.3))
         .withEnvironmentMap(default.environmentMap.copy(coefficients = default.environmentMap.coefficients.map(_.map(_ + rand.rng.scalaRandom.nextGaussian() * 0.2)))) // Randomize environment map
 //        .withCamera(default.camera.copy(sensorSize = Vector(9, 9)))
-//        .withImageSize(ImageSize(227, 227))
+        .fitToImageSize(227, 227)
     }
 
     val coefficients2 = model.sampleCoefficients()
     val parameters2 = {
-      val default = RenderParameter.default.withMoMo(MoMoInstance.fromCoefficients(coefficients2, new File("../face-autoencoder/model2017-1_bfm_nomouth.h5").toURI))
+      val default = RenderParameter.defaultSquare.withMoMo(MoMoInstance.fromCoefficients(coefficients2, new File("../face-autoencoder/model2017-1_bfm_nomouth.h5").toURI))
 
       default.withPose(Pose(scaling = default.pose.scaling, translation = default.pose.translation, rand.rng.scalaRandom.nextGaussian() * 0.1, rand.rng.scalaRandom.nextGaussian() * 0.5, rand.rng.scalaRandom.nextGaussian() * 0.3))
         .withEnvironmentMap(default.environmentMap.copy(coefficients = default.environmentMap.coefficients.map(_.map(_ + rand.rng.scalaRandom.nextGaussian() * 0.2)))) // Randomize environment map
       //        .withCamera(default.camera.copy(sensorSize = Vector(9, 9)))
-      //        .withImageSize(ImageSize(227, 227))
+        .fitToImageSize(227, 227)
     }
 
     // Convert parameters to outputs
@@ -396,6 +396,13 @@ object Example {
     //val reg = tf.sum(vtxsPerTriangle)
     //val reg = tf.sum(tf.abs(variableModel.ptsVar))
 
+//    val tfRenderer = TFImageRenderer(model.expressionModel.get.truncate(80, 40, 5))
+//    val tfImage = tfRenderer.render(variableModel.ptsVar.reshape(Shape(1, -1)), variableModel.colorsVar.reshape(Shape(1, -1)),
+//      variableModel.illumVar, variableModel.poseRotVar(0, 2), variableModel.poseRotVar(0, 1), variableModel.poseRotVar(0, 0),
+//      param.imageSize.width, param.imageSize.height, initPose.translation.reshape(Shape(3)), initCamera.near, initCamera.far,
+//      Tensor(initCamera.sensorSizeX.scalar, initCamera.sensorSizeY.scalar), initCamera.focalLength,
+//      Tensor(initCamera.principalPointX.toFloat, initCamera.principalPointY.toFloat))
+
     val validArea = tf.tile(tf.expandDims(renderer.triangleIdsAndBCC.triangleIds > 0, 2), Seq(1, 1, 3))
 
     val recPart1 = target * validArea.toFloat
@@ -477,11 +484,11 @@ object Example {
     session.run(targets = tf.globalVariablesInitializer())
 
     for (i <- 0 to 180) {
-      val result = session.run(
+      val result = time("Render", {session.run(
         feeds = Map(target -> targetImage) ++ variableModel.feeds,
         fetches = Seq(renderer.shShader, loss, rec, lh, shapePrior),
         targets = Seq(optFn)
-      )
+      )})
 
       println(s"iter $i", result(1).toTensor.summarize(), result(2).toTensor.summarize(), result(3).toTensor.summarize(), result(4).toTensor.summarize())
 
