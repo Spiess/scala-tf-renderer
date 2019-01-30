@@ -164,10 +164,10 @@ object Example {
       (
         imageRenderer.batchRender(batchShapeParams, batchColorCoefficients, batchEnvironmentMap, multiBatchRoll,
           multiBatchPitch, multiBatchYaw, imageWidth, imageHeight, batchTranslation, cameraNear, cameraFar,
-          batchSensorSize, focalLength, batchPrincipalPoint, 2),
+          batchSensorSize, focalLength, batchPrincipalPoint, 2)._1,
         basicImageRenderer.batchRender(basicBatchShapeParams, batchColorCoefficients, batchEnvironmentMap, multiBatchRoll,
           multiBatchPitch, multiBatchYaw, imageWidth, imageHeight, batchTranslation, cameraNear, cameraFar,
-          batchSensorSize, focalLength, batchPrincipalPoint, 2)
+          batchSensorSize, focalLength, batchPrincipalPoint, 2)._1
       )
     }
 

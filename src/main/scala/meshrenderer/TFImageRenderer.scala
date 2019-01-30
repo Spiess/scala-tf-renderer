@@ -81,6 +81,8 @@ case class TFImageRenderer(landmarksRenderer: TFLandmarksRenderer,
     * Renders a batch of parameters. WARNING: Because some operations used here are not/cannot be optimized for batches,
     * this method may perform poorly and can only be used for the specified batch size. After the operations have been
     * constructed the batch size cannot be changed.
+    * <br>
+    * Barycentric coordinates are returned to be able to determine where the mesh was rendered (where barycentric coordinates sum to 0).
     *
     * @param shapeParameters            all shape related parameters with shape (batchSize, number of parameters)
     * @param colorParameters            color parameters with shape (batchSize, number of parameters)
@@ -95,7 +97,7 @@ case class TFImageRenderer(landmarksRenderer: TFLandmarksRenderer,
     * @param focalLength                shape ()
     * @param principalPoint             camera principal point of shape (batchSize, 2 [x, y])
     * @param batchSize                  the number of samples in one batch
-    * @return image output of shape (batchSize, height, width, 3 [r, g, b])
+    * @return (image output of shape (batchSize, height, width, 3 [r, g, b]), barycentric coordinates of shape (batchSize, height, width, 3))
     */
   def batchRender(
                    shapeParameters: Output[Float], colorParameters: Output[Float], environmentMapCoefficients: Output[Float],
@@ -104,7 +106,7 @@ case class TFImageRenderer(landmarksRenderer: TFLandmarksRenderer,
                    translation: Output[Float], cameraNear: Output[Float], cameraFar: Output[Float],
                    sensorSize: Output[Float], focalLength: Output[Float], principalPoint: Output[Float],
                    batchSize: Int
-                 ): Output[Float] = {
+                 ): (Output[Float], Output[Float]) = {
 
     val points = landmarksRenderer.batchGetInstance(shapeParameters) // shape (batchSize, numPoints, 3)
 
@@ -115,9 +117,9 @@ case class TFImageRenderer(landmarksRenderer: TFLandmarksRenderer,
     } // shape (batchSize, colorSize)
 
     // TODO: Not batch optimized yet
-    val normals = tf.stack((0 until batchSize).map(i => TFMeshOperations.vertexNormals(points(i, ::, ::), triangles, trianglesForPointData))) // TODO: determine shape (batchSize, ???, 3)
+    val normals = tf.stack((0 until batchSize).map(i => TFMeshOperations.vertexNormals(points(i, ::, ::), triangles, trianglesForPointData))) // shape (batchSize, numPoints?, 3)
 
-    val worldNormals = Transformations.batchPoseRotationTransform(normals, pitch, yaw, roll) // TODO: determine shape (batchSize, ???, 3)
+    val worldNormals = Transformations.batchPoseRotationTransform(normals, pitch, yaw, roll) // shape (batchSize, numPoints?, 3)
 
     val ndcPts = Transformations.batchPointsToNDC(points, roll, pitch, yaw, translation, cameraNear, cameraFar,
       sensorSize, focalLength, principalPoint) // shape (batchSize, numPoints, 3)
@@ -125,17 +127,17 @@ case class TFImageRenderer(landmarksRenderer: TFLandmarksRenderer,
 
     // TODO: Not batch optimized yet
     // Rendering and shading
-    val images = (0 until batchSize).map(i => {
+    val (images, barycentricCoordinates) = (0 until batchSize).map(i => {
       val triangleIdsAndBCC = Rasterizer.rasterize_triangles(ndcPtsTf(i), triangles, imageWidth, imageHeight)
 
       val vtxIdxPerPixel = tf.gather(triangles, triangleIdsAndBCC.triangleIds.reshape(Shape(-1)))
       val interpolatedAlbedo = Shading.interpolateVertexDataPerspectiveCorrect(triangleIdsAndBCC, vtxIdxPerPixel, color(i, ::), ndcPtsTf(i, ::, 2))
       val interpolatedNormals = Shading.interpolateVertexDataPerspectiveCorrect(triangleIdsAndBCC, vtxIdxPerPixel, worldNormals(i, ::, ::), ndcPtsTf(i, ::, 2))
 
-      Shading.sphericalHarmonicsLambertShader(interpolatedAlbedo, interpolatedNormals, environmentMapCoefficients(i, ::, ::))
-    })
+      (Shading.sphericalHarmonicsLambertShader(interpolatedAlbedo, interpolatedNormals, environmentMapCoefficients(i, ::, ::)), triangleIdsAndBCC.barycetricImage)
+    }).unzip
 
-    tf.stack(images)
+    (tf.stack(images), tf.stack(barycentricCoordinates))
   }
 }
 
