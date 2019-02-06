@@ -29,7 +29,7 @@ libraryDependencies  ++= Seq(
 //    "ch.unibas.cs.gravis" %% "faces-utils" % "develop-9c9dd84ab7ed3eeb57c65bb9b9d434d7c059921c",//"develop-8efeaf67947a8a964084064b6f47ff96605665d5",
 //"ch.unibas.cs.gravis" %% "scalismo-ui" % "0.11.+",
     "org.scalatest" %% "scalatest" % "3.0.0" % "test"
-)
+).map(_.exclude("org.slf4j","slf4j-nop"))
 
 //libraryDependencies += "org.sameersingh.scalaplot" % "scalaplot" % "0.0.4"
 
