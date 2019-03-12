@@ -9,8 +9,8 @@ version 0.4.1) a slightly modified and compiled version of TensorFlow Scala.
 
 ### TensorFlow Scala:
 
-The fix (between `***`) should no longer be necessary as the bug has been fixed in the current Scala TensorFlow head and
-can be skipped. If a Scala TensorFlow version > 0.4.1 is available as binary, this can be used instead of completing
+The fix (between `***`) should no longer be necessary as the bug has been fixed in the current TensorFlow Scala head and
+can be skipped. If a TensorFlow Scala version > 0.4.1 is available as binary, this can be used instead of completing
 the following steps.
 
 Compile your desired version of [TensorFlow](https://github.com/tensorflow/tensorflow) (1.12 or newer) according to the
@@ -71,14 +71,16 @@ the following code snippet to the operation registration in `rasterize_triangles
 
 ## Features:
 
-* interpolate vertex attributes
-* spherical harmonics illumination
-* optimize for color, pose, illumination, vertex position, camera parameters. 
+* Interpolate vertex attributes
+* Spherical harmonics illumination
+* Optimize for color, pose, illumination, vertex position, camera parameters. 
 
-Contributors:
+## Contributors:
+
 * Thomas Gerig
 * Adam Kortylewski
 * Andreas Schneider
+* Florian Spiess
 
 ## Please cite:
 ```latex
