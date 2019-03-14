@@ -9,17 +9,17 @@ version 0.4.1) a slightly modified and compiled version of TensorFlow Scala.
 
 ### TensorFlow Scala:
 
-The fix (between `***`) should no longer be necessary as the bug has been fixed in the current TensorFlow Scala head and
-can be skipped. If a TensorFlow Scala version > 0.4.1 is available as binary, this can be used instead of completing
-the following steps.
+The fix (between `***`) should no longer be necessary and can be skipped, as the bug has been fixed in the current TensorFlow Scala head. If a TensorFlow Scala version > 0.4.1 is available as binary, this can be used instead of completing the following steps.
 
 Compile your desired version of [TensorFlow](https://github.com/tensorflow/tensorflow) (1.12 or newer) according to the
 [TensorFlow Scala instructions](http://platanios.org/tensorflow_scala/installation.html) to obtain `libtensorflow.so`
 and `libtensorflow_framework.so`. Add these two files to a directory on your `LD_LIBRARY_PATH`.
 
+Clone the [TensorFlow Scala](https://github.com/eaplatanios/tensorflow_scala) repository.
+
 `***`
 
-Clone the [TensorFlow Scala](https://github.com/eaplatanios/tensorflow_scala) repository, change line 1501 in
+Change line 1501 in
 `org/platanios/tensorflow/api/ops/Op.scala` from
 ```
 outputs.map(_.toOutput.asInstanceOf[Output[T]])
